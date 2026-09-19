@@ -17,7 +17,8 @@ the structured-output contract, and the resolver rule.
 |---|---|---|
 | `REPOMAN_OLLAMA_HOST` | `http://localhost:11434` | unset |
 | `REPOMAN_MODEL_ID` | `qwen3:8b` | Bedrock inference profile ID for Claude Sonnet, copied from the console — never constructed from memory |
-| `AWS_REGION` | unset | e.g. `us-east-1` |
+| `AWS_REGION` | unset | the region the model access / API key was made in, e.g. `eu-north-1` |
+| `AWS_BEARER_TOKEN_BEDROCK` | unset | a Bedrock API key (console → API keys); boto3 ≥ 1.39 reads it directly. Short-term keys expire in 12 h. Never in a file. |
 | `REPOMAN_BUCKET` | unset → `LocalStore(./data)` | bucket name → `S3Store` |
 | `REPOMAN_TOKEN` | unset (no auth) | shared token for the web UI |
 | `GROQ_API_KEY` | test bench only: Groq's OpenAI-compatible endpoint (`openai/gpt-oss-120b`) when neither Ollama nor Bedrock is at hand. Not a track; submissions leave the machine. | unset |

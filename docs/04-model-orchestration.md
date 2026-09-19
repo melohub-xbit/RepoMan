@@ -17,6 +17,11 @@ which one it got:
 | AWS | `strands.models.BedrockModel` | Claude Sonnet on Bedrock | `REPOMAN_MODEL_ID`, `AWS_REGION` |
 | Test bench (not a track) | `strands.models.openai.OpenAIModel` against Groq | `openai/gpt-oss-120b` | `GROQ_API_KEY` |
 
+**Credentials.** Either IAM keys or a **Bedrock API key** in `AWS_BEARER_TOKEN_BEDROCK`
+(boto3 reads it; nothing in the code touches it). A new AWS account sits in verification for
+up to ~2 hours after model access is enabled — every call is `AccessDeniedException:
+Your account is currently being verified` until then.
+
 **Bedrock model ID.** Take it from the Bedrock console → Model catalog → the
 Claude Sonnet entry → *cross-region inference profile ID*. It is a string of the
 form `us.anthropic.claude-sonnet-...`. Put it in `REPOMAN_MODEL_ID`; do not
