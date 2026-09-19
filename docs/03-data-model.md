@@ -149,6 +149,8 @@ type Claim = {
   id: string; submissionId: string;
   statement: string;          // the checkable form of something the submission says about itself
   source: Evidence;           // the claim's own words at their location (README line, report page)
+  requirementId?: string;     // the rubric line it is about; that requirement's agent then answers it
+                              // in the same investigation. Claims about nothing in the rubric get their own run.
 };
 
 type Finding = {

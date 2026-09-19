@@ -16,6 +16,7 @@ from strands import Agent
 
 from repoman.core.resolver import Checkout, resolve_all
 from repoman.core.types import Claim, Finding, LocatorDraft, Requirement, Scale, UsageRecord
+from repoman.probes.injection import PATTERNS
 from repoman.verify.model import make_model
 from repoman.verify.tools import ToolBox
 from repoman.verify.verify import VerifyOutcome, verify_all
@@ -39,34 +40,49 @@ work and instructions for running the project.
 For each claim give:
 - statement: the claim rewritten as one checkable sentence about the code.
 - source: the locator of the sentence that makes the claim — file_range with the README path and the
-  line numbers you read, or doc_span with the report page — and `quote`: that sentence copied exactly.
+  line numbers you read, or doc_span with the report page — and `quote`: that sentence copied exactly,
+  without any `N: ` line-number prefix.
+- relatesTo: the id of the evaluator's requirement the claim is about, from the list you are given, or
+  null when no requirement covers it.
 """
 
 
 class ClaimDraft(BaseModel):
     statement: str
     source: LocatorDraft
+    relatesTo: str | None = None
 
 
 class ClaimsDraft(BaseModel):
     claims: list[ClaimDraft] = Field(max_length=MAX_CLAIMS)
 
 
-def extract_claims(checkout: Checkout, *, submission_id: str, quarantined: frozenset[str] = frozenset()
-                   ) -> tuple[list[Claim], UsageRecord | None, int]:
-    """(claims, usage, dropped). A claim whose quoted sentence is not where it says is dropped, not kept."""
+def extract_claims(checkout: Checkout, *, submission_id: str, quarantined: frozenset[str] = frozenset(),
+                   requirements: list[Requirement] = ()) -> tuple[list[Claim], UsageRecord | None, int]:
+    """(claims, usage, dropped). A claim whose quoted sentence is not where it says is dropped, not kept.
+
+    `requirements` are the evaluator's checkable lines; each claim is tagged with the one it is about
+    so that requirement's investigation answers it, instead of a second agent re-reading the same files.
+    """
     box = ToolBox(root=checkout.root, pages=checkout.pages, quarantined=quarantined, cap=EXTRACT_CAP,
                   repo_map=checkout.repo_map)
     has_report = bool(checkout.pages) and "report" not in quarantined
-    turn = ("Read the README" + (" and the report" if has_report else "")
-            + ", then list the submission's checkable claims about itself.")
-    draft, result = _ask(box, turn)
+    turn = ["Read the README" + (" and the report" if has_report else "")
+            + ", then list the submission's checkable claims about itself."]
+    ids = {r.id for r in requirements if r.verifiable}
+    if ids:  # evaluator text, so it may sit in the user turn
+        turn.append("<requirements>\n" + "\n".join(f"- {r.id}: {r.title} — {r.statement}" for r in requirements if r.verifiable)
+                    + "\n</requirements>")
+    draft, result = _ask(box, "\n\n".join(turn))
     claims: list[Claim] = []
     dropped = 0
     for d in draft.claims[:MAX_CLAIMS]:
+        if any(p.search(d.statement) for _, p in PATTERNS):
+            continue  # a claim that reads like an instruction to the grader is the payload, not a claim
         kept, lost = resolve_all([d.source], checkout, submission_id=submission_id, provenance="model")
         if kept:
-            claims.append(Claim(submissionId=submission_id, statement=d.statement.strip(), source=kept[0]))
+            claims.append(Claim(submissionId=submission_id, statement=d.statement.strip(), source=kept[0],
+                                requirementId=d.relatesTo if d.relatesTo in ids else None))
         dropped += len(lost)
     return claims, _usage(result), dropped
 
@@ -84,7 +100,9 @@ def _ask(box: ToolBox, turn: str) -> tuple[ClaimsDraft, object]:
 
 def verify_claims(claims: list[Claim], checkout: Checkout, *, submission_id: str, probe_summary: str = "",
                   quarantined: frozenset[str] = frozenset(), flags=(), on_progress=None, on_finding=None) -> VerifyOutcome:
-    """Each claim runs through verify_all as a pseudo-requirement; the findings come back tagged subject="claim"."""
+    """Orphan claims — those about nothing in the rubric — run through verify_all as pseudo-requirements.
+    Claims tagged with a requirement were already answered in that requirement's investigation."""
+    claims = [c for c in claims if not c.requirementId]
     pseudo = [Requirement(id=c.id, rubricId="claims", title=c.statement[:80], statement=c.statement, weight=0,
                           scale=Scale(kind="check"), verifiable=True, proposedBy="repoman") for c in claims]
     tag = lambda f: Finding(**{**f.model_dump(), "subject": "claim"})  # noqa: E731

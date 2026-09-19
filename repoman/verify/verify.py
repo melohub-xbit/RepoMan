@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from strands import Agent
 
 from repoman.core.resolver import Checkout, resolve_all
-from repoman.core.types import (Evidence, FileRange, Finding, FindingDraft, FlagKind, LocatorDraft,
+from repoman.core.types import (Claim, Evidence, FileRange, Finding, FindingDraft, FlagKind, LocatorDraft,
                                 Precedent, Requirement, UsageRecord)
 from repoman.verify.model import make_model, model_id
 from repoman.verify.tools import ToolBox
@@ -79,7 +79,7 @@ class VerifyOutcome:
 def verify_all(requirements: list[Requirement], checkout: Checkout, *, submission_id: str,
                probe_summary: str = "", quarantined: frozenset[str] = frozenset(),
                precedents: list[Precedent] = (), flags: list[FlagKind] = (),
-               on_progress=None, on_finding=None) -> VerifyOutcome:
+               on_progress=None, on_finding=None, claims: list[Claim] = ()) -> VerifyOutcome:
     """Fan out across requirements. Unverifiable ones are never sent to a model.
 
     Findings are delivered as they complete, not in rubric order: `on_finding(finding)` fires for
@@ -96,40 +96,47 @@ def verify_all(requirements: list[Requirement], checkout: Checkout, *, submissio
     def one(req: Requirement):
         return verify_requirement(req, checkout, submission_id=submission_id,
                                   probe_summary=probe_summary, quarantined=quarantined,
-                                  precedents=precedents, flags=flags)
+                                  precedents=precedents, flags=flags,
+                                  claims=[c for c in claims if c.requirementId == req.id])
 
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(checkable))) as pool:
         futures = [pool.submit(one, req) for req in checkable]
         for fut in as_completed(futures):
-            finding, usage, dropped = fut.result()
+            finding, usage, dropped, answered = fut.result()
             outcome.findings.append(finding)
+            outcome.findings.extend(answered)  # claims answered in this investigation, subject="claim"
             if usage:
                 outcome.usage.append(usage)
             outcome.mismatches += dropped
             done += 1
             if on_finding:
                 on_finding(finding)
+                for cf in answered:
+                    on_finding(cf)
             if on_progress:
                 on_progress(done, len(checkable), finding.requirementId)
 
     order = {r.id: i for i, r in enumerate(requirements)}
-    outcome.findings.sort(key=lambda f: order.get(f.requirementId, 0))
+    outcome.findings.sort(key=lambda f: (f.subject == "claim", order.get(f.requirementId, 0)))
     return outcome
 
 
 def verify_requirement(req: Requirement, checkout: Checkout, *, submission_id: str,
                        probe_summary: str = "", quarantined: frozenset[str] = frozenset(),
-                       precedents: list[Precedent] = (), flags: list[FlagKind] = ()
-                       ) -> tuple[Finding, UsageRecord | None, int]:
-    """One requirement → one Finding. Always returns a Finding, whatever goes wrong."""
+                       precedents: list[Precedent] = (), flags: list[FlagKind] = (), claims: list[Claim] = ()
+                       ) -> tuple[Finding, UsageRecord | None, int, list[Finding]]:
+    """One requirement → one Finding, plus a claim finding for each attached claim the agent answered.
+
+    Always returns a Finding, whatever goes wrong. An attached claim the agent did not answer is simply
+    absent from the fourth element; the pipeline gives it its own run."""
     box = ToolBox(root=checkout.root, pages=checkout.pages, probe_summary=probe_summary, repo_map=checkout.repo_map,
                   quarantined=quarantined, cap=TOOL_CAP)
 
     try:
-        draft, usage = _ask(req, box, precedents)
+        draft, usage = _ask(req, box, precedents, claims)
     except Exception as e:
         return _gave_up(req, box, submission_id, checkout, flags,
-                        f"The investigation failed: {type(e).__name__}."), None, 0
+                        f"The investigation failed: {type(e).__name__}."), None, 0, []
 
     kept, dropped = resolve_all(draft.evidence, checkout, submission_id=submission_id, provenance="model")
 
@@ -139,7 +146,7 @@ def verify_requirement(req: Requirement, checkout: Checkout, *, submission_id: s
                   if dropped else "No evidence was found for this requirement.")
         finding = _gave_up(req, box, submission_id, checkout, flags, reason, summary=draft.summary,
                            dropped=dropped)
-        return finding, usage, len(dropped)
+        return finding, usage, len(dropped), []
 
     state = draft.state
     if dropped and state == "VERIFIED":
@@ -159,13 +166,29 @@ def verify_requirement(req: Requirement, checkout: Checkout, *, submission_id: s
         confidenceReason=confidence_reason.strip(), searchExhausted=box.exhausted,
         questions=draft.questions if state != "VERIFIED" else [], producedBy=model_id(),
     )
-    return finding, usage, len(dropped)
+    return finding, usage, len(dropped), _answered(draft, finding, claims)
+
+
+def _answered(draft: FindingDraft, finding: Finding, claims: list[Claim]) -> list[Finding]:
+    """Claim findings from the verdicts, sharing the requirement finding's resolved evidence."""
+    by_id = {c.id: c for c in claims}
+    out = []
+    for v in draft.claimVerdicts:
+        if v.claimId not in by_id:
+            continue
+        out.append(Finding(
+            submissionId=finding.submissionId, requirementId=v.claimId, subject="claim", state=v.state,
+            flagged=finding.flagged, summary=v.summary.strip(), evidence=finding.evidence,
+            confidence=finding.confidence, confidenceReason=f"Answered in the investigation of “{finding.requirementId}”. "
+            + finding.confidenceReason, searchExhausted=finding.searchExhausted, producedBy=finding.producedBy,
+        ))
+    return out
 
 
 # --- the model call --------------------------------------------------------------
 
 
-def build_turn(req: Requirement, box: ToolBox, precedents) -> str:
+def build_turn(req: Requirement, box: ToolBox, precedents, claims: list[Claim] = ()) -> str:
     """The user turn. docs/05 boundary 1: nothing from the submission may appear here.
 
     Three trusted sources only — the evaluator's requirement, our own probe summaries, and the
@@ -178,6 +201,12 @@ def build_turn(req: Requirement, box: ToolBox, precedents) -> str:
     rules = [p.rule for p in precedents if p.requirementId == req.id]
     if rules:
         turn.append("<evaluator_rulings>\n" + "\n".join(f"- {r}" for r in rules) + "\n</evaluator_rulings>")
+    if claims:
+        # Claim statements are the extraction model's own sentences about the README, filtered for
+        # instruction-shaped text; the README's bytes themselves still only arrive through tools.
+        turn.append("<claims>\nThe submission also says, about this requirement:\n"
+                    + "\n".join(f"- [{c.id}] {c.statement}" for c in claims)
+                    + "\nWhile investigating, check each; give a claimVerdict per id.\n</claims>")
     turn.append("Investigate this requirement, then write the finding.")
     return "\n\n".join(turn)
 
@@ -192,11 +221,15 @@ Write the finding now, using only what the tools actually showed you.
     prefix read_file adds; the file itself does not contain it.
 
 If you did not find evidence, say so: set state to UNVERIFIED and cite the files you searched. \
-Do not invent a path, a line number, or a quote to fill the field.\
+Do not invent a path, a line number, or a quote to fill the field.
+
+If the turn listed claims the submission makes about this requirement, give one `claimVerdict` per claim id: \
+its own state (a claim can fail while the requirement passes, and the reverse) and one sentence saying why, \
+grounded in the same citations.\
 """
 
 
-def _ask(req: Requirement, box: ToolBox, precedents) -> tuple[FindingDraft, UsageRecord | None]:
+def _ask(req: Requirement, box: ToolBox, precedents, claims: list[Claim] = ()) -> tuple[FindingDraft, UsageRecord | None]:
     """Run the agent, then ask for the structured finding. Retries throttling only.
 
     `callback_handler=None` matters beyond noise: the default handler prints tool results, and tool
@@ -204,7 +237,7 @@ def _ask(req: Requirement, box: ToolBox, precedents) -> tuple[FindingDraft, Usag
     """
     agent = Agent(model=make_model(), system_prompt=VERIFY_SYSTEM, tools=box.build(),
                   messages=box.seed(), callback_handler=None)
-    turn = build_turn(req, box, precedents)
+    turn = build_turn(req, box, precedents, claims)
 
     last: Exception | None = None
     for attempt in range(THROTTLE_RETRIES):

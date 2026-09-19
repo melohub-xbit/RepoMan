@@ -76,10 +76,24 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
         probeVersions={name: PROBE_VERSION for name in report.results},
     )
 
-    # --- 05 verify --------------------------------------------------------------
+    # --- 05a claims: what the submission says about itself, read once, before verification -----
+    # Each claim is tagged with the requirement it is about, so that requirement's investigation
+    # answers it from the same files. Only claims about nothing in the rubric get a run of their own.
     checkable: list[Requirement] = [r for r in rubric.requirements if r.verifiable]
-    status("verify", checkable[0].title if checkable else "", 0, len(checkable))
+    claims: list = []
+    usage_extra: list = []
+    mismatches_extra = 0
+    if check_claims:
+        status("claims", "reading what the submission says about itself", 0, 0)
+        claims, usage, lost = extract_claims(checkout, submission_id=sub.id, requirements=checkable,
+                                             quarantined=frozenset(report.quarantined))
+        store.put_json(prefix + "claims.json", claims)
+        if usage:
+            usage_extra.append(usage)
+        mismatches_extra += lost
 
+    # --- 05 verify --------------------------------------------------------------
+    status("verify", checkable[0].title if checkable else "", 0, len(checkable))
     titles = {r.id: r.title for r in checkable}
     so_far: list = []  # written after every finding so the run page fills while the rest are investigated
 
@@ -88,33 +102,30 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
         store.put_json(prefix + "findings.json", so_far)
 
     outcome = verify_all(
-        rubric.requirements, checkout, submission_id=sub.id,
+        rubric.requirements, checkout, submission_id=sub.id, claims=claims,
         probe_summary=report.summary_for_prompt(), quarantined=frozenset(report.quarantined),
         precedents=list(precedents), flags=report.flags, on_finding=landed,
         on_progress=lambda done, total, rid: status("verify", titles.get(rid, ""), done, total),
     )
-    store.put_json(prefix + "findings.json", outcome.findings)
+    outcome.usage = usage_extra + outcome.usage
+    outcome.mismatches += mismatches_extra
+    claim_findings = [f for f in outcome.findings if f.subject == "claim"]
+    outcome.findings = [f for f in outcome.findings if f.subject != "claim"]
+    store.put_json(prefix + "findings.json", outcome.findings + claim_findings)
 
-    # --- 05a claims: the submission's own description, checked the same way ------
-    claim_findings = []
-    if check_claims:
-        status("claims", "reading what the submission says about itself", 0, 0)
-        claims, usage, lost = extract_claims(checkout, submission_id=sub.id,
-                                             quarantined=frozenset(report.quarantined))
-        store.put_json(prefix + "claims.json", claims)
-        if usage:
-            outcome.usage.append(usage)
-        outcome.mismatches += lost
-        if claims:
-            claimed = verify_claims(
-                claims, checkout, submission_id=sub.id, probe_summary=report.summary_for_prompt(),
-                quarantined=frozenset(report.quarantined), flags=report.flags, on_finding=landed,
-                on_progress=lambda done, total, _cid: status("claims", f"claim {done} of {total}", done, total),
-            )
-            claim_findings = claimed.findings
-            outcome.usage += claimed.usage
-            outcome.mismatches += claimed.mismatches
-            store.put_json(prefix + "findings.json", outcome.findings + claim_findings)
+    # claims about nothing in the rubric, and attached claims the agent left unanswered
+    answered = {f.requirementId for f in claim_findings}
+    orphans = [c.model_copy(update={"requirementId": None}) for c in claims if c.id not in answered]
+    if orphans:
+        claimed = verify_claims(
+            orphans, checkout, submission_id=sub.id, probe_summary=report.summary_for_prompt(),
+            quarantined=frozenset(report.quarantined), flags=report.flags, on_finding=landed,
+            on_progress=lambda done, total, _cid: status("claims", f"claim {done} of {total}", done, total),
+        )
+        claim_findings += claimed.findings
+        outcome.usage += claimed.usage
+        outcome.mismatches += claimed.mismatches
+        store.put_json(prefix + "findings.json", outcome.findings + claim_findings)
 
     # --- 05b contradiction ------------------------------------------------------
     status("contradict", "cross-checking the submission's own claims", len(checkable), len(checkable))

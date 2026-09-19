@@ -171,6 +171,7 @@ class Claim(BaseModel):
     submissionId: str
     statement: str  # the checkable form, e.g. "Redis is used as a cache for read-heavy endpoints"
     source: Evidence  # the claim's own words at their location; resolved like any evidence
+    requirementId: str | None = None  # the rubric line this claim is about, when there is one; verified in its run
 
 
 class Finding(BaseModel):
@@ -263,6 +264,14 @@ class LocatorDraft(BaseModel):
         return {**data, "locator": loc}
 
 
+class ClaimVerdict(BaseModel):
+    """The requirement's agent answering an attached claim from the same investigation."""
+
+    claimId: str
+    state: FindingState
+    summary: str
+
+
 class FindingDraft(BaseModel):
     state: FindingState
     summary: str
@@ -270,6 +279,7 @@ class FindingDraft(BaseModel):
     confidence: Confidence
     confidenceReason: str
     questions: list[str] = []
+    claimVerdicts: list[ClaimVerdict] = []  # one per claim listed in the turn; shares this finding's evidence
 
 
 class RequirementDraft(BaseModel):

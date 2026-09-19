@@ -29,7 +29,7 @@ def make_model():
         # when neither a local model nor Bedrock is at hand. Submissions leave the machine on this path.
         return _GroqModel(client_args={"api_key": groq_key, "base_url": "https://api.groq.com/openai/v1"},
                           model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_GROQ_MODEL),
-                          params={"temperature": 0})
+                          params={"temperature": 0, "max_completion_tokens": 8192, "reasoning_effort": "low"})
 
     from strands.models import BedrockModel
 

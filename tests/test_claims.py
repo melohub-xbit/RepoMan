@@ -124,3 +124,40 @@ def test_run_page_fills_while_running(client):
     done = c.get("/runs/run1/live")
     assert done.headers.get("HX-Refresh") == "true"
     assert 'id="live"' not in c.get("/runs/run1").text
+
+
+def test_attached_claims_are_answered_in_the_requirements_investigation(monkeypatch):
+    """One agent run, two findings: the requirement's and the claim's, sharing resolved evidence."""
+    from repoman.core.types import ClaimVerdict, Requirement
+
+    draft = FindingDraft(state="VERIFIED", summary="Two roles, enforced on /admin.", confidence="high",
+                         confidenceReason="Read the enum and the config.",
+                         evidence=[LocatorDraft(locator=FileRange(path="src/main/java/app/model/UserRole.java", startLine=7,
+                                                                  endLine=10, commitSha="x"), quote="public enum UserRole {")],
+                         claimVerdicts=[ClaimVerdict(claimId="c5", state="CONTRADICTED", summary="Two roles exist, not five.")])
+    seen = {}
+    def ask(req, box, precedents, claims=()):
+        seen["claims"] = list(claims)
+        seen["turn"] = V.build_turn(req, box, precedents, claims)
+        return draft, None
+    monkeypatch.setattr(V, "_ask", ask)
+    claim = Claim(id="c5", submissionId="s", statement="Five user roles are enforced.", requirementId="q2",
+                  source=Evidence(submissionId="s", provenance="model", quote=README_LINE,
+                                  locator=FileRange(path="README.md", startLine=3, endLine=3, commitSha=SHA)))
+    req = Requirement(id="q2", rubricId="rb", title="RBAC", statement="Roles are defined and enforced.", weight=20, verifiable=True)
+    out = V.verify_all([req], Checkout(root=REPO, commitSha=SHA), submission_id="s", claims=[claim])
+    assert [c.id for c in seen["claims"]] == ["c5"] and "[c5] Five user roles are enforced." in seen["turn"]
+    assert [(f.subject, f.state) for f in out.findings] == [("requirement", "VERIFIED"), ("claim", "CONTRADICTED")]
+    cf = out.findings[1]
+    assert cf.requirementId == "c5" and cf.evidence == out.findings[0].evidence and "not five" in cf.summary
+
+
+def test_orphan_claims_are_the_only_ones_verify_claims_runs(monkeypatch):
+    calls = []
+    monkeypatch.setattr(C, "verify_all", lambda pseudo, *a, **k: (calls.append([r.id for r in pseudo]) or V.VerifyOutcome()))
+    src = Evidence(submissionId="s", provenance="model", quote=README_LINE,
+                   locator=FileRange(path="README.md", startLine=3, endLine=3, commitSha=SHA))
+    claims = [Claim(id="a", submissionId="s", statement="x", source=src, requirementId="q1"),
+              Claim(id="b", submissionId="s", statement="y", source=src)]
+    C.verify_claims(claims, Checkout(root=REPO, commitSha=SHA), submission_id="s")
+    assert calls == [["b"]]

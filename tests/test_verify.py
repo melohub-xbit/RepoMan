@@ -54,7 +54,7 @@ def run(monkeypatch, checkout, the_draft, *, req=None, **kw):
 
 
 def test_a_resolving_citation_becomes_a_finding(monkeypatch, checkout):
-    finding, _usage, dropped = run(monkeypatch, checkout, draft())
+    finding, _usage, dropped, _c = run(monkeypatch, checkout, draft())
     assert finding.state == "VERIFIED" and dropped == 0
     assert finding.evidence[0].provenance == "model"
     assert finding.evidence[0].locator.commitSha == SHA
@@ -71,7 +71,7 @@ def test_a_bluffed_citation_is_dropped_and_downgrades_the_state(monkeypatch, che
         LocatorDraft(locator=FileRange(path="src/main/java/app/model/UserRole.java", startLine=1,
                                        endLine=12, commitSha="x"), quote="AUDITOR, OWNER, SUPERADMIN"),
     ])
-    finding, _u, dropped = run(monkeypatch, checkout, d)
+    finding, _u, dropped, _c = run(monkeypatch, checkout, d)
     assert dropped == 1
     assert finding.state == "PARTIAL"  # not VERIFIED: some of what it claimed was not there
     assert len(finding.evidence) == 1
@@ -80,7 +80,7 @@ def test_a_bluffed_citation_is_dropped_and_downgrades_the_state(monkeypatch, che
 
 def test_a_finding_whose_every_citation_fails_becomes_unverified(monkeypatch, checkout):
     d = draft(quote="this text is nowhere in the repository")
-    finding, _u, dropped = run(monkeypatch, checkout, d)
+    finding, _u, dropped, _c = run(monkeypatch, checkout, d)
     assert finding.state == "UNVERIFIED" and dropped == 1
     assert finding.confidence == "low"
     assert finding.evidence, "invariant 2: a finding still needs a locator"
@@ -94,19 +94,19 @@ def test_a_model_failure_becomes_an_unverified_finding_not_a_crash(monkeypatch, 
         raise RuntimeError("bedrock exploded")
 
     monkeypatch.setattr(V, "_ask", boom)
-    finding, _u, _d = V.verify_requirement(requirement(), checkout, submission_id="s")
+    finding, _u, _d, _c = V.verify_requirement(requirement(), checkout, submission_id="s")
     assert finding.state == "UNVERIFIED"
     assert "RuntimeError" in finding.confidenceReason
     assert finding.evidence  # still cites something: the search itself
 
 
 def test_an_unverified_finding_carries_questions_for_the_evaluator(monkeypatch, checkout):
-    finding, _u, _d = run(monkeypatch, checkout, draft(quote="nowhere at all"))
+    finding, _u, _d, _c = run(monkeypatch, checkout, draft(quote="nowhere at all"))
     assert finding.questions
 
 
 def test_a_verified_finding_does_not_carry_viva_questions(monkeypatch, checkout):
-    finding, _u, _d = run(monkeypatch, checkout, draft(questions=["why?"]))
+    finding, _u, _d, _c = run(monkeypatch, checkout, draft(questions=["why?"]))
     assert finding.state == "VERIFIED" and finding.questions == []
 
 
@@ -114,7 +114,7 @@ def test_a_verified_finding_does_not_carry_viva_questions(monkeypatch, checkout)
 
 
 def test_submission_flags_land_on_every_finding(monkeypatch, checkout):
-    finding, _u, _d = run(monkeypatch, checkout, draft(), flags=["PROMPT_INJECTION"])
+    finding, _u, _d, _c = run(monkeypatch, checkout, draft(), flags=["PROMPT_INJECTION"])
     assert finding.flagged == ["PROMPT_INJECTION"]
 
 
