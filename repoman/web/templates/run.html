@@ -56,7 +56,10 @@
     const b = e.target.closest('[data-override]'); if (!b) return;
     b.closest('.decision').classList.toggle('overriding');
     b.setAttribute('aria-pressed', b.closest('.decision').classList.contains('overriding'));
-    b.closest('form').querySelector('input[name=action]').value = b.getAttribute('aria-pressed') === 'true' ? 'override' : 'accept';
+    const on = b.getAttribute('aria-pressed') === 'true', form = b.closest('form');
+    form.querySelector('input[name=action]').value = on ? 'override' : 'accept';
+    form.querySelector('button[type=submit]').textContent = on ? 'Record override' : 'Accept';
+    if (on) form.querySelector('input[name=precedent]')?.focus();
   });
 </script>
 {% endblock %}
