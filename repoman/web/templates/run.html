@@ -20,6 +20,14 @@
   {% for f in flags %}<span class="state">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}
   {% if flags|select('in', ['CONTRIBUTION_SKEW', 'TIMELINE_ANOMALY'])|list %}<span class="why">{{ probes.get('git', {}).get('summary', '') }}</span>{% endif %}
   {% if 'PROMPT_INJECTION' in flags %}<span class="why">{{ probes.get('injection', {}).get('summary', '') }}</span>{% endif %}
+  {% if 'FORK_SUSPECTED' in flags %}<span class="why">{{ probes.get('fork', {}).get('summary', '') }}</span>{% endif %}
+</div>
+{% endif %}
+
+{% if overlaps %}
+<div class="flags" role="note">
+  <span class="state">{{ mark('FLAGGED') }}shared code</span>
+  {% for o in overlaps %}<span class="why">{{ o.shared_count }} file{{ '' if o.shared_count == 1 else 's' }} identical to <a href="/runs/{{ o.other }}">{{ o.other_name }}</a> ({{ o.shared[:2]|join(', ') }}{% if o.shared_count > 2 %} and {{ o.shared_count - 2 }} more{% endif %})</span>{% endfor %}
 </div>
 {% endif %}
 

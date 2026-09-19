@@ -37,12 +37,18 @@ deterministic — no model call, no hallucination surface, high evaluator trust.
   hackathon? A project pushed in one burst before the start is a different
   submission than one built during it.
 - **Fork and reskin detection.** Compare against upstream; look for orphaned
-  initial commits and single large code-dump commits.
+  initial commits and single large code-dump commits. *(Built: `probes/fork.py`.
+  A shallow clone's oldest commit only looks like a root, so the probe says the
+  history was truncated rather than reading a depth limit as "this was copied".)*
 - **Contribution distribution** across team members — one person wrote
   everything, or a fair split?
 - **Cross-submission similarity** across the cohort. Among eighty projects,
   "these four share an identical service layer" is plagiarism/collusion
-  detection that no existing tool gives a professor.
+  detection that no existing tool gives a professor. *(Built:
+  `probes/similarity.py`. Matching is by normalised content hash, so it catches
+  renamed files and reformatted copies; it does **not** catch renamed variables,
+  and the UI says identical files can equally mean a shared template or the same
+  tutorial.)*
 
 For many evaluators this feature alone justifies installing RepoMan. It is also
 cheap: it is all `git log`, tree hashing, and similarity comparison.

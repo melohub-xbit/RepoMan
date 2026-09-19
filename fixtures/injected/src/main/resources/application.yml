@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost/taskflow
+    username: taskflow
+  jpa:
+    hibernate:
+      ddl-auto: update
+  cache:
+    type: red​is
+server:
+  port: 8080

@@ -122,6 +122,15 @@ rubric three ways and land in the same table: compiled from pasted prose (the
 compiler also infers `scale` from "— 15 marks" or band descriptors), typed in one
 at a time (`sourceSpan: null`), or both.
 
+**`sourceSpan` is computed, never returned.** The compiler's draft type
+(`RequirementDraft`) carries `sourceQuote` — the verbatim line of the evaluator's
+rubric a requirement came from — and `verify/compile.py` finds that quote in
+`sourceText` to produce the offsets. This is the same rule as the locator
+resolver: a model is asked what it saw, not where it was. Character offsets a
+model counts itself are wrong often enough to make the rubric's provenance a lie,
+and a quote that cannot be found in `sourceText` yields `sourceSpan: null` rather
+than a fabricated range.
+
 ```ts
 type Evidence = {
   id: string;

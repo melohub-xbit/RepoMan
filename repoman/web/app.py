@@ -8,6 +8,7 @@ import io
 import os
 import secrets
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request, UploadFile
@@ -24,19 +25,46 @@ from repoman.core.types import (Batch, Decision, Finding, Level, Precedent, Requ
                                 SourceSpan, coverage, new_id)
 from repoman.store import make_store
 
-try:
-    from repoman import pipeline  # type: ignore
-except ImportError:  # engine not landed yet
-    from repoman import pipeline_stub as pipeline  # type: ignore
+# No fallback to the stub. It was the right scaffold while the engine was being built, but a
+# silent `except ImportError` here means one bad import in the engine serves *fixture findings as
+# real ones* — fabricated evidence about a real student's work, with no sign on screen. Fail loudly.
+from repoman import pipeline  # noqa: E402
 
 HERE = Path(__file__).parent
-app = FastAPI(title="RepoMan")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    close_out_interrupted_runs()
+    yield
+
+
+app = FastAPI(title="RepoMan", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 tpl = Jinja2Templates(directory=HERE / "templates")
 store = make_store()
 
 STAGES = ["queued", "acquire", "probe", "verify", "contradict", "done"]
 STATE_ORDER = {"CONTRADICTED": 0, "UNVERIFIED": 1, "PARTIAL": 2, "VERIFIED": 3}
+
+
+def close_out_interrupted_runs() -> None:
+    """Mark runs that were in progress when the process last stopped as failed.
+
+    A run executes in a daemon thread, so stopping the server — Ctrl-C, a crash, a `--reload`
+    restart — kills it mid-stage while its `status.json` still says "verify". Nothing would ever
+    write to that file again, and the queue polls an unfinished row every two seconds forever.
+    A dead run must read as dead.
+    """
+    for key in store.list("runs"):
+        if not key.endswith("status.json"):
+            continue
+        status = store.get_json(key, {}) or {}
+        if status.get("stage") in ("done", "failed"):
+            continue
+        stage = status.get("stage", "queued")
+        store.put_json(key, RunStatus(stage="failed",
+                                      detail=f"interrupted during {stage}; the server stopped mid-run"))
 
 
 # --- auth: one shared token, HTTP basic. Cognito is post-hackathon. --------------
@@ -88,7 +116,10 @@ def load_run(run_id: str) -> dict:
         tally[f.state] = tally.get(f.state, 0) + 1
     return {
         "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "flags": flags, "tally": tally,
-        "probes": store.get_json(p + "probes.json", {}), "status": RunStatus.model_validate(store.get_json(p + "status.json")),
+        "probes": store.get_json(p + "probes.json", {}),
+        # A run whose status.json has not been written yet (the thread has not started) is queued,
+        # not a 500. model_validate(None) would raise here and take the whole queue page with it.
+        "status": RunStatus.model_validate(store.get_json(p + "status.json", {"stage": "queued"})),
         "verified": verified, "verifiable": verifiable, "decided": len(dec_by_req),
         "total_marks": sum(scores) if scores else None, "total_weight": sum(r.weight for r in reqs),
         "manifest": store.get_json(p + "manifest.json", {}),
@@ -149,7 +180,20 @@ def batch_page(request: Request, batch_id: str):
     batch = load_batch(batch_id)
     rubric = load_rubric(batch)
     precedents = store.get_json(f"precedents/{batch_id}.json", [])
-    return render(request, "batch.html", batch=batch, rubric=rubric, rows=queue_rows(batch, rubric), precedents=precedents)
+    rows = queue_rows(batch, rubric)
+    # Where a human is needed first: anything flagged, plus anything contradicted.
+    need = sum(1 for r in rows if r["flags"] or "CONTRADICTED" in r["states"])
+    # Cross-submission similarity is a fact about the batch, not about any one run, so it is
+    # computed here rather than baked into findings that were already shown to a human.
+    names = {r["run_id"]: (r["sub"].get("repoUrl") or r["run_id"]).replace("https://github.com/", "")
+             for r in rows}
+    overlaps = [{**o, "text": f"{names.get(o['a'], o['a'])} and {names.get(o['b'], o['b'])} share "
+                              f"{o['sharedCount']} identical file{'' if o['sharedCount'] == 1 else 's'} "
+                              f"({round(o['share'] * 100)}% of the smaller submission)",
+                 "a_name": names.get(o["a"], o["a"]), "b_name": names.get(o["b"], o["b"])}
+                for o in pipeline.batch_similarity(store, batch.runIds)]
+    return render(request, "batch.html", batch=batch, rubric=rubric, rows=rows, need=need,
+                  precedents=precedents, overlaps=overlaps)
 
 
 @app.get("/batches/{batch_id}/rubric", response_class=HTMLResponse)
@@ -223,7 +267,12 @@ async def add_submission(batch_id: str, repo_url: str = Form(""), deploy_url: st
                          report: UploadFile | None = None, zipfile: UploadFile | None = None, urls: str = Form("")):
     batch = load_batch(batch_id)
     rubric = load_rubric(batch)
+    if rubric is None or not rubric.requirements:
+        # Nothing to investigate against. The page already hides the form until a rubric exists;
+        # this catches the direct POST rather than starting runs that can only fail.
+        return RedirectResponse(f"/batches/{batch_id}/rubric", status_code=303)
     entries = [u.strip() for u in urls.splitlines() if u.strip()] if urls.strip() else [repo_url.strip()]
+    entries = [e for e in entries if e] or ([""] if (zipfile and zipfile.filename) else [])
     for entry in entries:
         run_id = new_id()
         prefix = f"runs/{run_id}/"
@@ -256,7 +305,18 @@ def _run(run_id, batch, rubric, repo_url, zip_path, report_path, deploy_url, pre
 
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
 def run_page(request: Request, run_id: str):
-    return render(request, "run.html", **load_run(run_id))
+    r = load_run(run_id)
+    # Shared code is a fact about a pair, so from inside one submission it reads as "identical to
+    # that one" — with a link, because the only useful next move is to open both and compare.
+    overlaps = []
+    if r["batch"]:
+        for o in pipeline.batch_similarity(store, r["batch"].runIds):
+            if run_id in (o["a"], o["b"]):
+                other = o["b"] if o["a"] == run_id else o["a"]
+                sub = store.get_json(f"runs/{other}/submission.json", {}) or {}
+                overlaps.append({"other": other, "shared": o["shared"], "shared_count": o["sharedCount"],
+                                 "other_name": (sub.get("repoUrl") or other).replace("https://github.com/", "")})
+    return render(request, "run.html", **r, overlaps=overlaps)
 
 
 # --- partials (HTMX) ----------------------------------------------------------
@@ -281,7 +341,7 @@ def evidence(request: Request, run_id: str, ev_id: str):
     if loc.kind == "file_range":
         path = store.local_dir(f"runs/{run_id}/repo") / loc.path
         if path.exists():
-            lines = path.read_text(errors="replace").splitlines()
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             lo, hi = max(1, loc.startLine - 6), min(len(lines), loc.endLine + 6)
             chunk = "\n".join(lines[lo - 1:hi])
             try:
@@ -353,6 +413,41 @@ def export_csv(batch_id: str):
                         d.level if d else "", d.note if d else "", r["verified"], r["verifiable"]])
     return Response(out.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{batch.name}.csv"'})
+
+
+@app.get("/runs/{run_id}/feedback.md")
+def feedback(run_id: str):
+    """The student-facing note, built from what the evaluator *accepted* — not from RepoMan's states.
+
+    Nothing here is sent anywhere: docs/07 Q2 is open on whether RepoMan ever delivers this, so it
+    is a download the evaluator edits and forwards themselves. No states jargon, no confidence, no
+    flags, and no finding the evaluator has not signed off on.
+    """
+    r = load_run(run_id)
+    decided = [c for c in r["claims"] if c["decision"]]
+    lines = [f"# Feedback — {r['sub'].get('repoUrl') or run_id}", ""]
+    if not decided:
+        lines.append("_No decisions have been recorded yet, so there is nothing to send._")
+        return Response("\n".join(lines), media_type="text/markdown")
+
+    for c in decided:
+        req, f, d = c["req"], c["finding"], c["decision"]
+        head = f"## {req.title}"
+        if d.score is not None:
+            head += f" — {d.score:g} of {req.weight:g}" + (f" ({d.level})" if d.level else "")
+        lines += [head, ""]
+        if d.note:
+            lines += [d.note, ""]
+        # Only findings the evaluator accepted, described plainly, with the places to look.
+        if f and not d.overrodeFindingId:
+            lines += [f.summary, ""]
+            for e in f.evidence[:4]:
+                lines.append(f"- {permalink(e.locator, r['sub'])}")
+            lines.append("")
+    total = sum(c["decision"].score for c in decided if c["decision"].score is not None)
+    lines += ["---", f"Total recorded so far: {total:g} of {r['total_weight']:g}."]
+    return Response("\n".join(lines), media_type="text/markdown",
+                    headers={"Content-Disposition": f'attachment; filename="feedback-{run_id}.md"'})
 
 
 @app.get("/runs/{run_id}/packet.md")

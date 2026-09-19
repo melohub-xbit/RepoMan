@@ -5,6 +5,7 @@ No I/O here. Nothing outside the stdlib and pydantic.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import uuid4
@@ -18,6 +19,15 @@ def now() -> str:
 
 def new_id() -> str:
     return uuid4().hex[:12]
+
+
+def hash_author(identifier: str) -> str:
+    """Author emails are hashed where the git log is read, before anything downstream sees them.
+
+    docs/05 boundary 4: the strip happens at acquisition, not at render time — the bias it exists
+    to prevent happens inside the model, so a name that reaches the prompt has already done its damage.
+    """
+    return hashlib.sha256(identifier.strip().lower().encode()).hexdigest()[:12]
 
 
 # --- EvidenceLocator: the spine -------------------------------------------------
@@ -178,6 +188,45 @@ class LocatorDraft(BaseModel):
     locator: EvidenceLocator
     quote: str
 
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate_model_output(cls, data):
+        """Fill the bookkeeping fields a model omits, so a real citation is not lost to a missing tag.
+
+        Models routinely leave out the `kind` discriminator, `artifactId`, and the commit SHA (which
+        they cannot know anyway — the resolver overwrites it from the checkout). All three are
+        inferable or supplied by us, and none of them is evidence.
+
+        Tolerance stops here. The stored types stay strict, and the locator must still survive the
+        resolver, which is where trust is actually decided.
+        """
+        if not isinstance(data, dict):
+            return data
+        loc = data.get("locator")
+        if not isinstance(loc, dict):
+            return data
+        loc = dict(loc)
+
+        if not loc.get("kind"):
+            if "page" in loc:
+                loc["kind"] = "doc_span"
+            elif "url" in loc or "status" in loc:
+                loc["kind"] = "http_capture"
+            elif "authorHash" in loc or "committedAt" in loc:
+                loc["kind"] = "git_object"
+            elif "path" in loc or "startLine" in loc:
+                loc["kind"] = "file_range"
+            else:
+                return data
+
+        if loc["kind"] == "file_range":
+            loc.setdefault("commitSha", "")  # the resolver replaces this with the checkout's
+            loc.setdefault("startLine", 1)
+            loc.setdefault("endLine", loc["startLine"])
+        elif loc["kind"] == "doc_span":
+            loc.setdefault("artifactId", "report")
+        return {**data, "locator": loc}
+
 
 class FindingDraft(BaseModel):
     state: FindingState
@@ -193,7 +242,7 @@ class RequirementDraft(BaseModel):
     statement: str
     weight: float
     scale: Scale = Scale()
-    sourceSpan: SourceSpan
+    sourceQuote: str = ""  # the rubric line this came from; compile.py finds it to compute sourceSpan
     verifiable: bool
     unverifiableReason: str | None = None
     proposedBy: Literal["evaluator", "repoman"] = "evaluator"
@@ -201,6 +250,18 @@ class RequirementDraft(BaseModel):
 
 class CompiledRubric(BaseModel):
     requirements: list[RequirementDraft] = Field(min_length=1)
+
+
+class ContradictionDraft(BaseModel):
+    """A claim the submission makes about itself that its own code does not support."""
+
+    requirementId: str
+    summary: str
+    evidence: list[LocatorDraft] = Field(min_length=1)  # the claim's locator, resolved like any other
+
+
+class Contradictions(BaseModel):
+    contradictions: list[ContradictionDraft] = []
 
 
 # --- The human's contribution --------------------------------------------------
@@ -254,6 +315,7 @@ class RunManifest(BaseModel):
     finishedAt: str | None = None
     usage: list[UsageRecord] = []
     mismatches: int = 0
+    notes: list[str] = []  # stages that degraded. A run that did less than usual must say so.
 
 
 RunStage = Literal["queued", "acquire", "probe", "verify", "contradict", "done", "failed"]

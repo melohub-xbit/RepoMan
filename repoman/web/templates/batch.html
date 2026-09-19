@@ -6,7 +6,7 @@
   {% if rows %}<a class="btn ghost sm" href="/batches/{{ batch.id }}/export.csv">Export CSV</a>{% endif %}
 {% endblock %}
 {% block body %}
-{% set need = rows|selectattr('flags')|list|length + rows|rejectattr('flags')|selectattr('states', 'contains', 'CONTRADICTED')|list|length %}
+{# `need` is computed in app.py: Jinja has no `contains` test, and this is queue logic anyway. #}
 {% set decided = rows|selectattr('decided', 'equalto', rows[0].claims|length if rows else 0)|list|length if rows else 0 %}
 <div class="pagehead">
   <div><h1>{{ batch.name }}</h1>
@@ -29,6 +29,22 @@
 {% elif not rows %}
 <div class="card empty"><b>Nothing submitted yet</b>Add a GitHub URL below. A report PDF and a deployed URL make the findings richer.</div>
 {% else %}
+{% if overlaps %}
+<div class="section"><span class="k">Shared code across this batch<span class="why">identical files, matched by content — renaming a file does not hide it</span></span>
+<div class="card">
+  <ul class="overlaps">
+    {% for o in overlaps %}
+    <li>
+      <span class="state state-FLAGGED">{{ mark('FLAGGED') }}{{ o.sharedCount }} identical</span>
+      <span class="pair"><a href="/runs/{{ o.a }}">{{ o.a_name }}</a> and <a href="/runs/{{ o.b }}">{{ o.b_name }}</a></span>
+      <span class="why">{{ (o.share * 100)|round|int }}% of the smaller submission · {{ o.shared[:3]|join(', ') }}{% if o.sharedCount > 3 %} and {{ o.sharedCount - 3 }} more{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="lead" style="padding:0 16px 14px">Identical files can mean copying, a shared template, or the same tutorial. RepoMan does not tell them apart — open both and decide.</p>
+</div></div>
+{% endif %}
+
 <div class="section"><span class="k">Queue<span class="why">ordered by where a human is needed: flagged, then contradicted, then least evidence</span></span>
 <div class="card">
 <table class="queue">

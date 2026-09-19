@@ -1,0 +1,48 @@
+"""The provider port. The entire local-vs-cloud difference, resolved once from the environment.
+
+Track 1 (Ollama on the evaluator's laptop, no AWS account, "no byte of a submission left this
+machine") and Track 2 (Bedrock, S3, App Runner, a whole cohort) are the same codebase. They
+differ here and in `store/`, and nowhere else. Never write `if is_cloud` in business logic.
+"""
+
+from __future__ import annotations
+
+import os
+
+DEFAULT_OLLAMA_MODEL = "qwen3:8b"
+DEFAULT_REGION = "us-east-1"
+
+
+def make_model():
+    """Whichever provider the environment asks for. Nothing downstream may ask which one it got."""
+    host = os.environ.get("REPOMAN_OLLAMA_HOST")
+    if host:
+        from strands.models.ollama import OllamaModel
+
+        return OllamaModel(host=host, model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_OLLAMA_MODEL),
+                           temperature=0)
+
+    from strands.models import BedrockModel
+
+    model_id = os.environ.get("REPOMAN_MODEL_ID")
+    if not model_id:
+        raise RuntimeError(
+            "Set REPOMAN_MODEL_ID to the Bedrock inference profile ID copied from the console "
+            "(Model catalog → Claude Sonnet → cross-region inference profile), or set "
+            "REPOMAN_OLLAMA_HOST to run locally. Do not construct the profile ID from memory."
+        )
+    # Prompt caching stays off until per-submission cost is measured (docs/04). When it goes on,
+    # it goes on here: the system prompt and tool list are identical across requirements, so the
+    # cached prefix is exactly the stable part.
+    kwargs = {"model_id": model_id, "region_name": os.environ.get("AWS_REGION", DEFAULT_REGION),
+              "temperature": 0}
+    if os.environ.get("REPOMAN_CACHE") == "1":
+        kwargs |= {"cache_prompt": "default", "cache_tools": "default"}
+    return BedrockModel(**kwargs)
+
+
+def model_id() -> str:
+    """What to record in the RunManifest, so a disputed finding can be reproduced."""
+    if os.environ.get("REPOMAN_OLLAMA_HOST"):
+        return f"ollama:{os.environ.get('REPOMAN_MODEL_ID', DEFAULT_OLLAMA_MODEL)}"
+    return f"bedrock:{os.environ.get('REPOMAN_MODEL_ID', 'unset')}"

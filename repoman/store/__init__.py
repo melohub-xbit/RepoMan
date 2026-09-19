@@ -22,6 +22,15 @@ class Store(Protocol):
         """A real directory for `key` (checkouts). LocalStore: in place. S3Store: /tmp cache."""
         ...
 
+    def archive_dir(self, key: str, source: Path) -> None:
+        """Persist a materialised directory. LocalStore: already persisted, so nothing to do.
+
+        This is on the port rather than behind an `if is_cloud` in the pipeline: the checkout
+        needs tarring into the run prefix on S3 and needs nothing on disk, and that difference
+        is exactly what a port is for.
+        """
+        ...
+
 
 class LocalStore:
     def __init__(self, root: str | Path = "data"):
@@ -42,12 +51,12 @@ class LocalStore:
         p = self._p(key)
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(p.suffix + ".tmp")
-        tmp.write_text(json.dumps(value, indent=2, sort_keys=True))
+        tmp.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(p)  # atomic on POSIX; a reader never sees a half-written file
 
     def get_json(self, key: str, default: Any = None) -> Any:
         p = self._p(key)
-        return json.loads(p.read_text()) if p.exists() else default
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else default
 
     def put_bytes(self, key: str, data: bytes) -> None:
         p = self._p(key)
@@ -70,6 +79,9 @@ class LocalStore:
         p = self._p(key)
         p.mkdir(parents=True, exist_ok=True)
         return p
+
+    def archive_dir(self, key: str, source: Path) -> None:
+        """Nothing to do: the checkout is already where it lives."""
 
 
 def make_store() -> Store:

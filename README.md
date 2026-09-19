@@ -34,9 +34,24 @@ institution can defend.
 
 ## Status
 
-Pre-implementation. The specification is complete and scoped to a two-day
-hackathon build on the AWS track list; no code yet. See
-[`docs/06-build-plan.md`](docs/06-build-plan.md).
+The vertical slice runs end to end on Track 1 — local model, local disk, no AWS
+account:
+
+```bash
+uv sync
+ollama pull qwen3:8b
+
+export REPOMAN_OLLAMA_HOST=http://localhost:11434
+export REPOMAN_MODEL_ID=qwen3:8b
+
+uv run repoman run https://github.com/team/project --rubric fixtures/rubric.md
+uv run uvicorn repoman.web.app:app --port 8765     # the evaluator workspace
+```
+
+Track 2 (Bedrock, S3, App Runner) is written but has never been run: see
+**Current status** in [`AGENTS.md`](AGENTS.md) for exactly what is and is not
+proven. `uv run pytest` is the regression suite, including the prompt-injection
+fixture.
 
 ## Documentation
 

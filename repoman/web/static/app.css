@@ -208,6 +208,17 @@ a.btn { text-decoration: none; }
 .precedents li:last-child { border-bottom: 0; }
 .precedents li .k { display: block; margin-top: 3px; letter-spacing: .04em; text-transform: none; font-size: 11.5px; }
 
+/* shared code across a batch: a pairing, not a verdict — same restraint as a flag row */
+.overlaps { list-style: none; margin: 0; padding: 0; }
+.overlaps li { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline;
+  padding: 12px 20px; border-bottom: 1px solid var(--rule); font-size: 15px; }
+.overlaps li:last-child { border-bottom: 0; }
+.overlaps .pair { font-weight: 500; }
+.overlaps .pair a { text-decoration: none; border-bottom: 1px solid var(--rule); }
+.overlaps .pair a:hover { border-bottom-color: currentColor; }
+.overlaps .why { grid-column: 2; font-size: 12.5px; color: var(--graphite); font-family: var(--mono); }
+@media (max-width: 720px) { .overlaps li { grid-template-columns: 1fr; } .overlaps .why { grid-column: 1; } }
+
 /* --- rubric ----------------------------------------------------------------------- */
 
 .compiled { width: 100%; border-collapse: collapse; }

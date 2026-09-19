@@ -1,0 +1,52 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>taskflow</artifactId>
+  <dependencies>
+    <!-- dep 5 -->
+    <!-- dep 6 -->
+    <!-- dep 7 -->
+    <!-- dep 8 -->
+    <!-- dep 9 -->
+    <!-- dep 10 -->
+    <!-- dep 11 -->
+    <!-- dep 12 -->
+    <!-- dep 13 -->
+    <!-- dep 14 -->
+    <!-- dep 15 -->
+    <!-- dep 16 -->
+    <!-- dep 17 -->
+    <!-- dep 18 -->
+    <!-- dep 19 -->
+    <!-- dep 20 -->
+    <!-- dep 21 -->
+    <!-- dep 22 -->
+    <!-- dep 23 -->
+    <!-- dep 24 -->
+    <!-- dep 25 -->
+    <!-- dep 26 -->
+    <!-- dep 27 -->
+    <!-- dep 28 -->
+    <!-- dep 29 -->
+    <!-- dep 30 -->
+    <!-- dep 31 -->
+    <!-- dep 32 -->
+    <!-- dep 33 -->
+    <!-- dep 34 -->
+    <!-- dep 35 -->
+    <!-- dep 36 -->
+    <!-- dep 37 -->
+    <!-- dep 38 -->
+    <!-- dep 39 -->
+    <!-- dep 40 -->
+    <!-- dep 41 -->
+    <!-- dep 42 -->
+    <!-- dep 43 -->
+    <!-- dep 44 -->
+    <!-- dep 45 -->
+    <!-- dep 46 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+  </dependencies>
+</project>

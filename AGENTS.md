@@ -68,7 +68,7 @@ One Python 3.12 package. Server-rendered UI in the same process.
 repoman/
   core/        Domain types (pydantic), EvidenceLocator, resolver, finding states. No I/O.
   intake/      GitHub URL / zip → Submission; git clone at pinned commit; pypdf for reports
-  probes/      Deterministic checks (deps, tests, git, injection, deploy). Pure functions.
+  probes/      Deterministic checks (deps, tests, git, fork, injection, deploy) + similarity. Pure functions.
   verify/      Rubric compiler, Strands agent + read-only tools, contradiction pass
   store/       Store port: LocalStore | S3Store. JSON + bytes, nothing else.
   web/         FastAPI + Jinja2 evaluator UI: batch list, findings, overrides, export
@@ -91,6 +91,13 @@ its pydantic implementation. Change the doc and the models in the same commit.
 **Probes are pure.** Every deterministic probe is a function from artifacts to
 evidence with no hidden state, so it can be unit-tested against a fixture repo.
 If a probe needs the network, it takes a client as a parameter.
+
+**Cross-submission similarity is computed, never stored on a run.** A run writes
+its own `fingerprint.json`; the pairing is derived from the batch on demand
+(`pipeline.batch_similarity`). The comparison's answer changes as the batch
+fills — the fifth submission can reveal that the first two were copies — and a
+later submission must never rewrite an earlier one's findings, because those are
+the record of what a human was shown when they decided.
 
 **Pinned commits.** Every `file_range` carries the checkout's `commitSha`, so a
 permalink stays valid after the student force-pushes.
@@ -123,7 +130,27 @@ schema, and the exports.
 
 ## Current status
 
-Pre-implementation. The documentation set is complete and scoped to a two-day
-build; no code has been written yet. Start from
-[`docs/06-build-plan.md`](docs/06-build-plan.md) — the Day 1 spine is the
-vertical slice that proves the thesis end to end.
+**The spine is closed and runs end to end**, local-only (Ollama + `LocalStore`).
+`repoman run <zip-or-url> --rubric r.md` compiles a rubric, acquires the
+submission, probes it, investigates each requirement, resolves every citation and
+prints findings; the same run opens in the web UI with its evidence.
+
+Built and tested (`uv run pytest` — 126 tests):
+
+- `core/` — types, and `resolver.py`, the locator verifier (invariant 3)
+- `intake/` — clone / unzip / `pypdf`, author emails hashed at acquisition
+- `probes/` — all five: `deps`, `tests`, `git`, `injection`, `deploy`
+- `verify/` — provider port, the six read-only tools, rubric compiler, verify
+  pass, contradiction pass
+- `pipeline.py`, `cli.py`, `store/s3.py`, `infra/`
+- `web/` — the evaluator workspace, now driven by the real engine
+
+Not yet done: **nothing has run against Bedrock** — Track 2 is untested, and the
+cost figure in `docs/04` is still an estimate. `infra/deploy.sh` has never been
+executed. The two public GitHub fixture repos do not exist, so the demo's
+permalinks resolve to paths rather than opening on github.com.
+
+Known quality gap: against a local 7B model the locator mismatch rate is high
+(most citations on `UNVERIFIED` findings do not resolve). The findings are still
+correct — that is the resolver doing its job — but the rate is the metric
+`docs/04` says to watch, and it wants a Sonnet baseline before it means anything.

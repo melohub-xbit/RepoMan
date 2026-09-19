@@ -95,7 +95,7 @@ Recorded so they are not re-argued mid-build.
 | **DynamoDB / Lambda / Step Functions / EventBridge / Cognito / Amplify** | Each is a good next step and none is needed to show the thesis. |
 | **Model tiering, Batch API** | Batch API is not on Bedrock at all. One model, measured first. |
 | **LTI, browser extension, calibration, cross-institution similarity** | Post-hackathon, as before. |
-| **Cross-submission similarity** | Day 3 item that no longer has a Day 3. One afternoon post-hackathon: hash file trees, compare across the batch. |
+| ~~**Cross-submission similarity**~~ | **Built after all** — `probes/similarity.py`. Normalised per-file hashes written per run; the pairing is computed from the batch on demand, so a later submission never rewrites an earlier one's findings. Catches renamed and reformatted copies, not renamed *variables*. |
 | **Anything producing a number** | Permanent. Holding this line *is* the demo. |
 
 ---

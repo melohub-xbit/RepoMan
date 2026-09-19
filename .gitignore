@@ -9,3 +9,4 @@ data/
 .impeccable/mocks/
 .playwright-mcp/
 .impeccable/questions/
+build/

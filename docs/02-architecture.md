@@ -16,7 +16,7 @@ input, which is what makes a run replayable from its manifest.
 01 Intake          GitHub URL or zip (+ optional report PDF, deploy URL) → Submission + Artifact[]
 02 Acquire         git clone at a pinned commit; PDF → per-page text; stored under the run
 03 Compile rubric  Prose → Requirement[]; unverifiable criteria marked, evaluator edits before run
-04 Probe           Deterministic checks: deps, tests, git timeline, injection scan, deploy liveness
+04 Probe           Deterministic checks: deps, tests, git timeline, fork/reskin, injection scan, deploy liveness
 05 Verify          One agent run per requirement: read-only tools over the checkout → Finding
 06 Human decides   Workspace, overrides, precedent, export
 ```
@@ -44,7 +44,7 @@ the UI is server-rendered templates in the same process.
 repoman/
   core/        types (pydantic), EvidenceLocator, resolver, finding states, RunManifest. No I/O.
   intake/      GitHub URL / zip → Submission. git clone, PDF → pages.
-  probes/      Pure functions: deps, tests, git, injection, deploy. No model calls.
+  probes/      Pure functions: deps, tests, git, fork, injection, deploy, similarity. No model calls.
   verify/      Rubric compiler, the Strands agent + tools, finding assembly. The only module that talks to a model.
   store/       The one port: Store(put_json/get_json/list/put_bytes/get_bytes). LocalStore | S3Store.
   web/         FastAPI + Jinja2: batch list, submission findings, evidence cards, override, export.
@@ -106,9 +106,15 @@ runs/<runId>/probes.json
 runs/<runId>/findings.json
 runs/<runId>/decisions.json      # human writes; everything else is machine output
 runs/<runId>/report_pages.json
+runs/<runId>/fingerprint.json    # normalised per-file hashes, for cross-submission comparison
 runs/<runId>/repo/               # the checkout, only in LocalStore; S3Store keeps a tarball
 precedents/<batchId>.json
 ```
+
+Cross-submission similarity has no file of its own on purpose. It is derived from
+the batch's `fingerprint.json` files whenever it is displayed, because its answer
+changes as the batch fills and a later submission must never rewrite an earlier
+one's findings — those are the record of what a human was shown when they decided.
 
 `# ponytail: decisions.json is read-modify-write with no lock. Fine for one
 evaluator per batch; move Decision/Precedent to a DynamoDB table when two people
