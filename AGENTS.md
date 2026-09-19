@@ -135,7 +135,7 @@ schema, and the exports.
 submission, probes it, investigates each requirement, resolves every citation and
 prints findings; the same run opens in the web UI with its evidence.
 
-Built and tested (`uv run pytest` — 126 tests):
+Built and tested (`uv run pytest` — 155 tests):
 
 - `core/` — types, and `resolver.py`, the locator verifier (invariant 3)
 - `intake/` — clone / unzip / `pypdf`, author emails hashed at acquisition
@@ -144,6 +144,29 @@ Built and tested (`uv run pytest` — 126 tests):
   pass, contradiction pass
 - `pipeline.py`, `cli.py`, `store/s3.py`, `infra/`
 - `web/` — the evaluator workspace, now driven by the real engine
+
+Added on the evening of 2026-09-19, on top of the engine (Track A, while Track B
+was away — read these before touching `verify/`):
+
+- **Claims ledger** (`verify/claims.py`, `docs/03` → `Claim`, `Finding.subject`).
+  The README/report's own claims are extracted through the read-only tools, each
+  pinned to the sentence that made it, and verified like requirements. Claim
+  findings share `findings.json` (keyed by the claim id, `subject: "claim"`),
+  are never scored and never count toward coverage. Batch toggle `checkClaims`,
+  CLI `--no-claims`, run stage `claims`.
+- **Cedar policy** (`verify/policy.cedar`, `verify/policy.py`, dependency
+  `cedarpy`). `ToolBox` asks the policy for every file, page and probe result.
+  **A new tool needs a `permit` line there** or every call is denied. A payload
+  on a report page now quarantines the whole PDF.
+- **Rubric scales** (`Requirement.scale`: check / points / levels;
+  `Decision.level`). The rubric page is one editor: paste-to-compile appends,
+  rows can be typed in directly (`sourceSpan: null`), levels seed five classes.
+- **AWS audit**: `deploy.sh` and `store/s3.py` checked against the botocore
+  service models; the App Runner "waiter" did not exist and is now a status
+  poll; `cache_prompt=` → `CacheConfig`.
+- **Groq test bench** (`GROQ_API_KEY`): an OpenAI-compatible third provider in
+  `verify/model.py` for exercising prompts live without Ollama or Bedrock. Not
+  a track.
 
 Not yet done: **nothing has run against Bedrock** — Track 2 is untested, and the
 cost figure in `docs/04` is still an estimate. `infra/deploy.sh` has never been
