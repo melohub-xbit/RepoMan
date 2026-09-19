@@ -113,11 +113,18 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
-    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4" fill="none" stroke="#1f5fbf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">'
+           '<path d="M3 6.5h9M3 12h9M3 17.5h6" stroke="#15171b" stroke-width="2"/><path d="M15.5 3.5v17" stroke="#6b7078" stroke-width="1.2"/>'
+           '<path d="M17.5 12.5l2 2.2 3.5-4.7" stroke="#1f5fbf" stroke-width="2.2"/></svg>')
     return Response(svg, media_type="image/svg+xml")
 
 
 @app.get("/", response_class=HTMLResponse)
+def landing(request: Request):
+    return render(request, "landing.html")
+
+
+@app.get("/batches", response_class=HTMLResponse)
 def index(request: Request):
     batches = [Batch.model_validate(store.get_json(k)) for k in store.list("batches")]
     batches.sort(key=lambda b: b.createdAt, reverse=True)
@@ -361,5 +368,6 @@ def statechip(state: str, word: str | None = None) -> Markup:
     return Markup(f'<span class="state state-{escape(state)}" title="{escape(state.lower())}">{mark(state)}{escape(word)}</span>')
 
 
-tpl.env.globals.update(permalink=permalink, locator_text=locator_text, STAGES=STAGES, mark=mark, statechip=statechip)
+tpl.env.globals.update(permalink=permalink, locator_text=locator_text, STAGES=STAGES, mark=mark, statechip=statechip,
+                       asset_v=lambda: int((HERE / 'static' / 'app.css').stat().st_mtime))
 tpl.env.filters["short"] = lambda s, n=90: (s if len(s) <= n else s[: n - 1] + "…")

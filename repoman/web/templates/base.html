@@ -6,7 +6,8 @@
 <meta name="view-transition" content="same-origin">
 <meta name="color-scheme" content="light dark">
 <title>{% block title %}RepoMan{% endblock %}</title>
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v={{ asset_v() }}">
+<link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer></script>
 </head>
 <body hx-boost="false">
@@ -22,14 +23,14 @@
 </svg>
 <div class="sheet">
   <header class="masthead">
-    <a class="wordmark" href="/" style="color:inherit">RepoMan</a>
+    <a class="wordmark" href="/" style="view-transition-name: wordmark">{% include "_brand.html" %}<span>RepoMan</span></a>
     {% block crumbs %}{% endblock %}
     <span class="spacer"></span>
     {% block facts %}{% endblock %}
   </header>
   {% block body %}{% endblock %}
   <footer class="foot">
-    <span class="thesis">RepoMan does not judge people's work. It does the investigation a human needs before they can.</span>
+    <span class="thesis">{% block footleft %}RepoMan does not judge people's work. It does the investigation a human needs before they can.{% endblock %}</span>
     <span class="spacer" style="flex:1"></span>
     <span>{% block footright %}{% endblock %}</span>
   </footer>

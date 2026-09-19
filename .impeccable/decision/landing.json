@@ -1,0 +1,63 @@
+{
+  "title": "Choose the landing page's structure",
+  "question": "The world is settled (the galley). This is composition only: which structure carries the first viewport?",
+  "options": [
+    {
+      "id": "appeal",
+      "label": "The Appeal",
+      "kicker": "THE ROLL",
+      "lineage": "the evidence packet, filed",
+      "thesis": "The first viewport is a real evidence packet — the record a student could appeal with — assembling itself line by line.",
+      "palette": ["#F6F6F3", "#15171B", "#6B7078", "#1F5FBF"],
+      "materials": ["bond paper", "graphite marginalia", "hairline rule"],
+      "viewport": "Wordmark and a one-line thesis at the top. Below, a packet: 'Evidence packet · taskflow-springboot · at 9f3c2a1d · 1 of 5 verified', then three findings typeset with their margin checks — VERIFIED, CONTRADICTED, LOOKED·NOT FOUND — each locator and quote arriving one after another as if being filed. The primary action, 'Open the workspace', sits under the thesis. Features follow as a short galley: six lines, one rule.",
+      "risk": "A document-as-hero can read quiet on a projector; the assembling motion and the contradiction line have to carry it.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "wordmark + mark", "x": 0, "y": 0, "w": 4, "h": 1},
+        {"label": "thesis · open the workspace", "x": 0, "y": 1, "w": 7, "h": 2, "accent": true},
+        {"label": "evidence packet — three findings, filing in", "x": 0, "y": 3, "w": 8, "h": 6},
+        {"label": "margin checks", "x": 8, "y": 3, "w": 4, "h": 6},
+        {"label": "features · six lines", "x": 0, "y": 9, "w": 12, "h": 1}
+      ]},
+      "comp": ".impeccable/mocks/decision/landing-appeal.webp"
+    },
+    {
+      "id": "index",
+      "label": "Index of Checks",
+      "lineage": "the compiled rubric, resolving",
+      "thesis": "The first viewport is the rubric as a numbered checklist; each line resolves to its state in turn, and one of them says 'stays with you'.",
+      "palette": ["#F6F6F3", "#15171B", "#6B7078", "#1F5FBF"],
+      "materials": ["bond paper", "graphite marginalia", "hairline rule"],
+      "viewport": "Wordmark and thesis left; a six-line checklist right — 'JWT authentication', 'Role-based authorization', 'Caching layer', 'Automated tests', 'Code quality', 'Creativity' — each with an empty margin that fills: ✓, ✗ with 'report claims five roles', —, ◐, ◐, and 'stays with you'. The action sits under the thesis. Features below as the same checklist grammar.",
+      "risk": "A checklist hero is the category's most familiar shape; the 'stays with you' line and the contradiction have to do the differentiating.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "wordmark + mark", "x": 0, "y": 0, "w": 4, "h": 1},
+        {"label": "thesis · open the workspace", "x": 0, "y": 2, "w": 5, "h": 4, "accent": true},
+        {"label": "six-line checklist, resolving", "x": 6, "y": 1, "w": 6, "h": 7},
+        {"label": "features · checklist grammar", "x": 0, "y": 8, "w": 12, "h": 2}
+      ]},
+      "comp": ".impeccable/mocks/decision/landing-index.webp"
+    },
+    {
+      "id": "claim-evidence",
+      "label": "Claim vs. Evidence",
+      "lineage": "the README beside what the code shows",
+      "thesis": "Two columns on one rule: the submitter's claims typeset on the left, what RepoMan found on the right, and the one that doesn't hold is struck through.",
+      "palette": ["#F6F6F3", "#15171B", "#6B7078", "#1F5FBF"],
+      "materials": ["bond paper", "graphite marginalia", "hairline rule"],
+      "viewport": "Wordmark and thesis across the top. Left column headed 'The README says': 'JWT authentication · full RBAC across five tiers · Redis caching · comprehensive tests'. Right column headed 'The code shows': each claim's finding lands beside it with its locator; 'five tiers' gets a pencil strike and 'two roles — UserRole.java:7–12'. Action under the thesis. Features below in the same two-column grammar.",
+      "risk": "Strong on the mechanism, but strike-through on a claim can read as accusation on a Persuade surface; the copy must stay evidentiary.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "wordmark + mark", "x": 0, "y": 0, "w": 4, "h": 1},
+        {"label": "thesis · open the workspace", "x": 0, "y": 1, "w": 12, "h": 2, "accent": true},
+        {"label": "the README says", "x": 0, "y": 3, "w": 6, "h": 5},
+        {"label": "the code shows", "x": 6, "y": 3, "w": 6, "h": 5},
+        {"label": "features · two columns", "x": 0, "y": 8, "w": 12, "h": 2}
+      ]},
+      "comp": ".impeccable/mocks/decision/landing-claim.webp"
+    }
+  ],
+  "reroll": true,
+  "buildPath": {"value": "code", "toggle": false},
+  "steer": true
+}

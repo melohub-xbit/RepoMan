@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}RepoMan — the investigation before the judgment{% endblock %}
+{% block facts %}<a class="fact cta-quiet" href="/batches">Open the workspace →</a>{% endblock %}
+{% block body %}
+
+<section class="hero">
+  <h1>Evidence first.<br>Then you decide.</h1>
+  <p class="lede">RepoMan reads a submission — repository, report, deployed app — against your rubric and returns every claim with its evidence, cited to the line. It never scores. You do.</p>
+  <div class="cta">
+    <a class="act big" href="/batches">Open the workspace →</a>
+    <a class="act quiet" href="#how">How it works</a>
+  </div>
+</section>
+
+{# one real finding, demonstrating itself. Synthetic demonstration data from the fixture. #}
+<section class="demo galley" id="demo" aria-label="A finding, as the evaluator sees it">
+  <article class="claim">
+    <div class="copy">
+      <h2>Role-based authorization</h2>
+      <p class="statement">At least two roles exist and endpoints are restricted by role.</p>
+      <p class="summary">Two roles are defined (ADMIN, USER) and three of nine controllers carry an authorization annotation; the remaining six are reachable by any authenticated caller. The report claims full RBAC across five tiers.</p>
+      <p class="confidence"><b>high confidence</b> — Enum and config are unambiguous; the report's claim is directly quoted.</p>
+    </div>
+    <aside class="margin">
+      <ul class="checks">
+        <li class="head"><span class="state state-CONTRADICTED">{{ mark('CONTRADICTED') }}contradicted</span><span class="weight">15 marks</span></li>
+        <li class="check" data-proof="p1"><div class="loc"><button class="act" type="button">model/UserRole.java:7–12</button><span class="prov">model</span></div><div class="quote">public enum UserRole {&#10;    ADMIN,&#10;    USER</div></li>
+        <li class="check" data-proof="p2"><div class="loc"><button class="act" type="button">security/SecurityConfig.java:41–68</button><span class="prov">model</span></div><div class="quote">.requestMatchers("/admin/**").hasRole("ADMIN")</div></li>
+        <li class="check" data-proof="p3"><div class="loc"><button class="act" type="button">report · p.9</button><span class="prov">model</span></div><div class="quote">full RBAC across all five user tiers: guest, member, lead, admin and owner</div></li>
+      </ul>
+    </aside>
+    <div class="proof" hidden>
+      <span class="leader" aria-hidden="true"></span>
+      <div class="pane" data-pane="p1">
+        <div class="head"><b>model/UserRole.java:7–12</b><span>model</span></div>
+        <pre><code><span class="line"><span class="n">5</span><span>        <span class="c1">// line 5</span></span></span><span class="line"><span class="n">6</span><span></span></span><span class="line cited"><span class="n">7</span><span><span class="kd">public</span> <span class="kd">enum</span> <span class="nc">UserRole</span> {</span></span><span class="line cited"><span class="n">8</span><span>    <span class="na">ADMIN</span>,</span></span><span class="line cited"><span class="n">9</span><span>    <span class="na">USER</span></span></span><span class="line cited"><span class="n">10</span><span>}</span></span><span class="line"><span class="n">11</span><span></span></span></code></pre>
+      </div>
+      <div class="pane" data-pane="p2" hidden>
+        <div class="head"><b>security/SecurityConfig.java:41–68</b><span>model</span></div>
+        <pre><code><span class="line"><span class="n">45</span><span>            .<span class="nf">authorizeHttpRequests</span>(auth -&gt; auth</span></span><span class="line cited"><span class="n">46</span><span>                .<span class="nf">requestMatchers</span>(<span class="s">"/auth/**"</span>).<span class="nf">permitAll</span>()</span></span><span class="line cited"><span class="n">47</span><span>                .<span class="nf">requestMatchers</span>(<span class="s">"/admin/**"</span>).<span class="nf">hasRole</span>(<span class="s">"ADMIN"</span>)</span></span><span class="line cited"><span class="n">48</span><span>                .<span class="nf">requestMatchers</span>(<span class="s">"/api/**"</span>).<span class="nf">authenticated</span>()</span></span><span class="line"><span class="n">49</span><span>                .<span class="nf">anyRequest</span>().<span class="nf">permitAll</span>())</span></span></code></pre>
+      </div>
+      <div class="pane" data-pane="p3" hidden>
+        <div class="head"><b>report · p.9</b><span>model</span></div>
+        <div class="page">5. Authorization
+We implemented <mark>full RBAC across all five user tiers: guest, member, lead, admin and owner</mark>. Each controller method is annotated with the roles permitted to call it, so an unprivileged caller cannot reach administrative operations.</div>
+      </div>
+    </div>
+    <div class="decision demo-decision" aria-hidden="true">
+      <span class="act">Accept</span><span class="act">Override</span>
+      <span class="marks">marks <span class="blank"></span> / 15</span>
+      <span class="note-hint">— the human's number. RepoMan never writes here.</span>
+    </div>
+  </article>
+</section>
+
+<section class="features galley" id="features">
+  <div class="row reveal"><div class="copy"><h3>Requirement → Evidence → Finding</h3><p>Your rubric becomes checkable requirements. Each comes back with the exact lines, page, or response that support it.</p></div><aside class="margin"><span class="state state-VERIFIED">{{ mark('VERIFIED') }}cited</span></aside></div>
+  <div class="row reveal"><div class="copy"><h3>Verified, not trusted</h3><p>Every citation is re-read at the pinned commit before it's shown. One that doesn't resolve is dropped, never rendered.</p></div><aside class="margin"><span class="state state-CONTRADICTED">{{ mark('CONTRADICTED') }}dropped</span></aside></div>
+  <div class="row reveal"><div class="copy"><h3>"We looked and found nothing" is an answer</h3><p>Unverified is not "not implemented". The finding lists where it looked, so you can check in twenty seconds.</p></div><aside class="margin"><span class="state state-UNVERIFIED">{{ mark('UNVERIFIED') }}looked</span></aside></div>
+  <div class="row reveal"><div class="copy"><h3>Contradictions surface</h3><p>The report says five roles. The code has two. That is the finding that matters most, and only cross-checking produces it.</p></div><aside class="margin"><span class="state state-CONTRADICTED">{{ mark('CONTRADICTED') }}contradicted</span></aside></div>
+  <div class="row reveal"><div class="copy"><h3>Hostile input, flagged</h3><p>Prompt injection, deadline-hour code dumps, one-author teams — caught by deterministic probes and shown with their location.</p></div><aside class="margin"><span class="state state-FLAGGED">{{ mark('FLAGGED') }}flagged</span></aside></div>
+  <div class="row reveal"><div class="copy"><h3>Your marks, your precedent</h3><p>Accept or override. An override becomes a precedent for the rest of the batch. RepoMan never totals.</p></div><aside class="margin"><span class="state state-VERIFIED">{{ mark('VERIFIED') }}yours</span></aside></div>
+</section>
+
+<section class="flow reveal" id="how">
+  <ol>
+    <li><b>Intake</b><span>GitHub URL or zip, a report PDF, a deployed URL.</span></li>
+    <li><b>Compile</b><span>The rubric becomes a checklist you approve. "Creativity" stays with you.</span></li>
+    <li><b>Probe</b><span>Dependencies, tests, git history, injection, liveness — computed, not guessed.</span></li>
+    <li><b>Verify</b><span>An agent searches the checkout per requirement and cites what it finds.</span></li>
+    <li><b>Decide</b><span>You read, open the evidence in place, and enter the marks.</span></li>
+  </ol>
+  <p class="tracks">Same code on a laptop with a local model — nothing leaves the machine — or on AWS for the whole cohort from one URL.</p>
+</section>
+
+<section class="close reveal">
+  <p class="thesis-big">RepoMan does not judge people's work. It does the investigation a human needs before they can.</p>
+  <a class="act big" href="/batches">Open the workspace →</a>
+</section>
+{% endblock %}
+{% block footleft %}Built for evaluators who read the code.{% endblock %}
+{% block footright %}<a href="/batches">workspace</a>{% endblock %}
+{% block script %}
+<script>
+(() => {
+  document.documentElement.classList.add('js');
+  const demo = document.getElementById('demo'), proof = demo.querySelector('.proof');
+  const checks = [...demo.querySelectorAll('.check')];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function open(check) {
+    const id = check.dataset.proof;
+    checks.forEach(c => c.classList.toggle('is-open', c === check));
+    proof.querySelectorAll('.pane').forEach(p => p.hidden = p.dataset.pane !== id);
+    proof.hidden = false;
+    proof.style.setProperty('--leader-h', Math.max(0, proof.getBoundingClientRect().top - check.getBoundingClientRect().top - 2) + 'px');
+    proof.classList.remove('lift'); void proof.offsetWidth; proof.classList.add('lift');
+  }
+  checks.forEach(c => c.querySelector('button').addEventListener('click', () => open(c)));
+  // the finding demonstrates itself once, then it's yours
+  let played = false;
+  const io = new IntersectionObserver(es => {
+    if (!es[0].isIntersecting || played) return; played = true; io.disconnect();
+    demo.classList.add('play');
+    const t = reduce ? 0 : 1;
+    setTimeout(() => open(checks[0]), 1400 * t);
+    setTimeout(() => open(checks[2]), 4200 * t);
+  }, { threshold: 0.4 });
+  io.observe(demo);
+  // reveals, once, on the way down
+  const ro = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); ro.unobserve(e.target); } }), { rootMargin: '0px 0px -10% 0px' });
+  document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+})();
+</script>
+{% endblock %}
