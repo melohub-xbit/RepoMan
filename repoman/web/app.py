@@ -20,8 +20,8 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import TextLexer, get_lexer_for_filename
 from pygments.util import ClassNotFound
 
-from repoman.core.types import (Batch, Decision, Finding, Precedent, Requirement, Rubric, RunStatus, SourceSpan,
-                                coverage, new_id)
+from repoman.core.types import (Batch, Decision, Finding, Level, Precedent, Requirement, Rubric, RunStatus, Scale,
+                                SourceSpan, coverage, new_id)
 from repoman.store import make_store
 
 try:
@@ -160,36 +160,63 @@ def rubric_page(request: Request, batch_id: str):
     return render(request, "rubric.html", batch=batch, rubric=load_rubric(batch))
 
 
+def save_rubric(batch: Batch, rubric: Rubric) -> None:
+    store.put_json(f"rubrics/{rubric.id}.json", rubric)
+    if batch.rubricId != rubric.id:
+        batch.rubricId = rubric.id
+        store.put_json(f"batches/{batch.id}.json", batch)
+
+
 @app.post("/batches/{batch_id}/rubric/compile")
 def rubric_compile(batch_id: str, source: str = Form(...)):
+    """Compile pasted prose and append the result to whatever the editor already holds."""
     batch = load_batch(batch_id)
-    rubric = pipeline.compile_rubric(source, ["repo", "readme", "report", "deploy"])
-    store.put_json(f"rubrics/{rubric.id}.json", rubric)
-    batch.rubricId = rubric.id
-    store.put_json(f"batches/{batch.id}.json", batch)
+    compiled = pipeline.compile_rubric(source, ["repo", "readme", "report", "deploy"])
+    old = load_rubric(batch)
+    if old is None:
+        save_rubric(batch, compiled)
+    else:
+        offset = len(old.sourceText) + 1
+        rubric = Rubric(id=old.id, version=old.version + 1, sourceText=old.sourceText + "\n" + source,
+                        compiledBy=compiled.compiledBy, requirements=list(old.requirements))
+        for r in compiled.requirements:
+            if r.sourceSpan:
+                r.sourceSpan = SourceSpan(startChar=r.sourceSpan.startChar + offset, endChar=r.sourceSpan.endChar + offset)
+            rubric.requirements.append(r.model_copy(update={"rubricId": rubric.id}))
+        save_rubric(batch, rubric)
     return RedirectResponse(f"/batches/{batch_id}/rubric", status_code=303)
+
+
+def scale_from_form(form, rid: str) -> Scale:
+    kind = form.get(f"scale-{rid}", "points")
+    if kind != "levels":
+        return Scale(kind=kind)
+    levels = [Level(points=float(p or 0), label=l.strip(), description=d.strip())
+              for p, l, d in zip(form.getlist(f"lp-{rid}"), form.getlist(f"ll-{rid}"), form.getlist(f"ld-{rid}")) if l.strip()]
+    return Scale(kind="levels", levels=levels)
 
 
 @app.post("/batches/{batch_id}/rubric")
 async def rubric_approve(request: Request, batch_id: str):
     form = await request.form()
     batch = load_batch(batch_id)
-    old = load_rubric(batch)
+    old = load_rubric(batch) or Rubric(sourceText="", compiledBy="evaluator")  # every line typed in by hand
     rubric = Rubric(id=old.id, version=old.version + 1, sourceText=old.sourceText, compiledBy=old.compiledBy)
-    ids = form.getlist("id")
-    for i, rid in enumerate(ids):
+    for rid in form.getlist("id"):
         if form.get(f"delete-{rid}"):
             continue
         prev = next((r for r in old.requirements if r.id == rid), None)
+        scale = scale_from_form(form, rid)
+        weight = max(l.points for l in scale.levels) if scale.kind == "levels" else float(form.get(f"weight-{rid}") or 0)
         rubric.requirements.append(Requirement(
             id=rid, rubricId=rubric.id, title=form.get(f"title-{rid}", "").strip(),
-            statement=form.get(f"statement-{rid}", "").strip(), weight=float(form.get(f"weight-{rid}") or 0),
-            sourceSpan=prev.sourceSpan if prev else SourceSpan(startChar=0, endChar=0),
+            statement=form.get(f"statement-{rid}", "").strip(), weight=weight, scale=scale,
+            sourceSpan=prev.sourceSpan if prev else None,
             verifiable=form.get(f"verifiable-{rid}") == "on",
             unverifiableReason=prev.unverifiableReason if prev else None,
             proposedBy="evaluator",  # once the human edits and approves, it is theirs
         ))
-    store.put_json(f"rubrics/{rubric.id}.json", rubric)
+    save_rubric(batch, rubric)
     return RedirectResponse(f"/batches/{batch_id}", status_code=303)
 
 
@@ -276,11 +303,19 @@ def evidence(request: Request, run_id: str, ev_id: str):
 
 @app.post("/runs/{run_id}/decisions", response_class=HTMLResponse)
 def decide(request: Request, run_id: str, requirement_id: str = Form(...), action: str = Form(...),
-           score: str = Form(""), note: str = Form(""), precedent: str = Form("")):
+           score: str = Form(""), met: str = Form(""), level: str = Form(""), note: str = Form(""), precedent: str = Form("")):
     r = load_run(run_id)
     claim = next(c for c in r["claims"] if c["req"].id == requirement_id)
+    req, label = claim["req"], None
+    if req.scale.kind == "check":  # the form carries the human's choice in the scale's own terms; marks follow from it
+        marks = (req.weight if met == "1" else 0.0) if met else None
+    elif req.scale.kind == "levels":
+        chosen = req.scale.levels[int(level)] if level.strip() else None
+        marks, label = (chosen.points, chosen.label) if chosen else (None, None)
+    else:
+        marks = float(score) if score.strip() else None
     d = Decision(submissionId=r["sub"]["id"], requirementId=requirement_id, evaluatorId="evaluator",
-                 score=float(score) if score.strip() else None, note=note.strip(),
+                 score=marks, level=label, note=note.strip(),
                  overrodeFindingId=claim["finding"].id if action == "override" and claim["finding"] else None)
     decisions = [x for x in store.get_json(f"runs/{run_id}/decisions.json", []) if x["requirementId"] != requirement_id]
     decisions.append(d.model_dump())
@@ -311,13 +346,13 @@ def export_csv(batch_id: str):
     batch = load_batch(batch_id)
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["submission", "requirement", "weight", "state", "confidence", "evaluator_score", "note", "verified", "verifiable"])
+    w.writerow(["submission", "requirement", "weight", "state", "confidence", "evaluator_score", "evaluator_level", "note", "verified", "verifiable"])
     for r in queue_rows(batch, load_rubric(batch)):
         for c in r["claims"]:
             f, d = c["finding"], c["decision"]
             w.writerow([r["sub"].get("repoUrl") or r["run_id"], c["req"].title, c["req"].weight,
                         f.state if f else "not checked", f.confidence if f else "", d.score if d else "",
-                        d.note if d else "", r["verified"], r["verifiable"]])
+                        d.level if d else "", d.note if d else "", r["verified"], r["verifiable"]])
     return Response(out.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{batch.name}.csv"'})
 
@@ -338,7 +373,8 @@ def packet(run_id: str):
                 lines.append(f"- {permalink(e.locator, r['sub'])} ({e.provenance}) — `{e.quote.splitlines()[0][:120]}`")
             lines.append("")
         if d:
-            lines += [f"**Evaluator:** {'override' if d.overrodeFindingId else 'accepted'} · marks {d.score if d.score is not None else '—'} · {d.note}", ""]
+            lines += [f"**Evaluator:** {'override' if d.overrodeFindingId else 'accepted'} · "
+                      f"{d.level + ' · ' if d.level else ''}marks {d.score if d.score is not None else '—'} · {d.note}", ""]
     return Response("\n".join(lines), media_type="text/markdown")
 
 

@@ -6,6 +6,10 @@
       "id": "q1",
       "proposedBy": "evaluator",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "points",
+        "levels": []
+      },
       "sourceSpan": {
         "endChar": 84,
         "startChar": 49
@@ -20,6 +24,10 @@
       "id": "q2",
       "proposedBy": "evaluator",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "points",
+        "levels": []
+      },
       "sourceSpan": {
         "endChar": 133,
         "startChar": 85
@@ -34,6 +42,10 @@
       "id": "q3",
       "proposedBy": "evaluator",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "check",
+        "levels": []
+      },
       "sourceSpan": {
         "endChar": 185,
         "startChar": 134
@@ -48,6 +60,36 @@
       "id": "q4",
       "proposedBy": "evaluator",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "levels",
+        "levels": [
+          {
+            "description": "No automated tests.",
+            "label": "Missing",
+            "points": 0.0
+          },
+          {
+            "description": "A test file exists but exercises nothing meaningful.",
+            "label": "Token",
+            "points": 5.0
+          },
+          {
+            "description": "Core logic has tests; major paths untested.",
+            "label": "Partial",
+            "points": 10.0
+          },
+          {
+            "description": "Core logic and error paths tested.",
+            "label": "Solid",
+            "points": 15.0
+          },
+          {
+            "description": "Tests cover logic, errors and integration; run in CI.",
+            "label": "Comprehensive",
+            "points": 20.0
+          }
+        ]
+      },
       "sourceSpan": {
         "endChar": 237,
         "startChar": 186
@@ -62,6 +104,10 @@
       "id": "q5a",
       "proposedBy": "repoman",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "points",
+        "levels": []
+      },
       "sourceSpan": {
         "endChar": 274,
         "startChar": 238
@@ -76,6 +122,10 @@
       "id": "q5b",
       "proposedBy": "repoman",
       "rubricId": "r_cs402",
+      "scale": {
+        "kind": "points",
+        "levels": []
+      },
       "sourceSpan": {
         "endChar": 274,
         "startChar": 238

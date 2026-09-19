@@ -1,60 +1,145 @@
 {% extends "base.html" %}
 {% block title %}Rubric · {{ batch.name }} · RepoMan{% endblock %}
-{% block crumbs %}<a href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a><span class="sep">/</span><span>Rubric</span>{% endblock %}
+{% block crumbs %}<a class="crumb" href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a>{% endblock %}
+{% block facts %}<span class="fact">rubric{% if rubric %} · v{{ rubric.version }}{% endif %}</span>{% endblock %}
 {% block body %}
-{% if not rubric %}
-<div class="pagehead"><div><h1>Paste the rubric as you have it</h1><div class="meta"><span>Prose, a numbered list, marks in the margin — RepoMan turns it into a checklist you approve before anything runs.</span></div></div></div>
-<div class="twocol">
-  <div class="card panel">
-    <form method="post" action="/batches/{{ batch.id }}/rubric/compile">
-      <label class="field"><span>Rubric</span>
-        <textarea name="source" required rows="12" placeholder="1. Authentication with JWT — 15 marks
+{% set reqs = rubric.requirements if rubric else [] %}
+
+{# One row of the editor. r is None for the blank row cloned by "Add a requirement". #}
+{% macro row(r) %}
+{% set id = r.id if r else '__ID__' %}
+{% set kind = r.scale.kind if r else 'points' %}
+<tr class="{% if r and r.proposedBy == 'repoman' %}proposed{% elif r and not r.verifiable %}stays{% endif %}">
+  <td>
+    <input type="hidden" name="id" value="{{ id }}">
+    <input type="text" name="title-{{ id }}" value="{{ r.title if r else '' }}" placeholder="Title" aria-label="Title" required>
+    <textarea name="statement-{{ id }}" aria-label="What RepoMan looks for" rows="2" placeholder="What should be true — one checkable sentence, e.g. “JWT is issued on login and validated on protected routes.”">{{ r.statement if r else '' }}</textarea>
+    {% if r and not r.verifiable and r.unverifiableReason %}<p class="reason">{{ r.unverifiableReason }}</p>{% endif %}
+  </td>
+  <td class="scale">
+    <div class="kind">
+      <select name="scale-{{ id }}" aria-label="How you score it">
+        <option value="points" {% if kind == 'points' %}selected{% endif %}>marks out of</option>
+        <option value="check" {% if kind == 'check' %}selected{% endif %}>met / not met, worth</option>
+        <option value="levels" {% if kind == 'levels' %}selected{% endif %}>levels, top worth</option>
+      </select>
+      <input type="number" name="weight-{{ id }}" value="{{ (r.weight|int if r.weight == r.weight|int else r.weight) if r else 10 }}" min="0" step="0.5" aria-label="Marks" {% if kind == 'levels' %}readonly{% endif %}>
+    </div>
+    <div class="levels" {% if kind != 'levels' %}hidden{% endif %}>
+      {% for l in (r.scale.levels if r else []) %}
+      <div class="lvl">
+        <input type="number" name="lp-{{ id }}" value="{{ l.points|int if l.points == l.points|int else l.points }}" min="0" step="0.5" aria-label="Points">
+        <input type="text" name="ll-{{ id }}" value="{{ l.label }}" placeholder="Label" aria-label="Label" required>
+        <input type="text" name="ld-{{ id }}" value="{{ l.description }}" placeholder="What earns it" aria-label="Description">
+        <button type="button" class="x" aria-label="Remove level">×</button>
+      </div>
+      {% endfor %}
+      <button type="button" class="add-level">+ level</button>
+    </div>
+  </td>
+  <td class="verify">
+    <label class="toggle"><input type="checkbox" name="verifiable-{{ id }}" {% if not r or r.verifiable %}checked{% endif %}> RepoMan</label>
+    <div class="who {% if r and r.proposedBy == 'repoman' %}proposed{% elif r and not r.verifiable %}stays{% endif %}" style="margin-top:8px">
+      {% if not r %}typed in by you{% elif r.proposedBy == 'repoman' %}proposed by RepoMan — edit or accept{% elif not r.verifiable %}stays with you{% elif r.sourceSpan %}from your rubric{% else %}typed in by you{% endif %}
+    </div>
+  </td>
+  <td class="del"><label class="del"><input type="checkbox" name="delete-{{ id }}">remove</label></td>
+</tr>
+{% endmacro %}
+
+<div class="title">
+  {% if reqs %}
+  <h1>Approve what will be checked</h1>
+  <p class="sub">{{ reqs|length }} requirements · {{ reqs|selectattr('verifiable')|list|length }} checkable · edit anything, add more, then approve. Nothing runs until you do.</p>
+  {% else %}
+  <h1>Build the rubric</h1>
+  <p class="sub">Paste it as you have it and RepoMan turns it into a checklist — or add requirements one at a time. Either way you approve every line before anything runs.</p>
+  {% endif %}
+</div>
+
+<details class="rubric-in" {% if not reqs %}open{% endif %}>
+  <summary>{{ 'Paste more of the rubric' if reqs else 'Paste the rubric' }}</summary>
+  <form method="post" action="/batches/{{ batch.id }}/rubric/compile">
+    <label class="field"><span>Rubric</span>
+      <textarea name="source" required rows="10" placeholder="1. Authentication with JWT — 15 marks
 2. Role-based authorization (admin/user) — 15 marks
 3. Caching layer for read-heavy endpoints — 10 marks
-4. Automated tests with meaningful coverage — 20 marks
+4. Automated tests: 0 none · 5 token · 10 partial · 15 solid · 20 comprehensive
 5. Code quality and creativity — 40 marks"></textarea></label>
-      <div class="actions"><button class="btn" type="submit">Compile into a checklist →</button></div>
-    </form>
-  </div>
-  <div class="card aside">
-    <span class="k">What happens next</span>
-    <p>Each line becomes one checkable requirement with its weight.</p>
-    <p>Anything that cannot be found in code, a report or a deployment — creativity, effort — is marked <b>stays with you</b> and never sent to a model.</p>
+    <div class="intake actions" style="margin:0;padding:0;border:0;display:flex;gap:28px"><button class="act" type="submit">Compile →</button></div>
+  </form>
+  <aside class="aside">
+    <p>Each line becomes one checkable requirement. Marks, yes/no and level bands are read from the line and shown as <b style="color:var(--ink);font-weight:500">how you score it</b> — always editable.</p>
+    <p>Anything that cannot be found in code, a report or a deployment — creativity, effort — is marked <b style="color:var(--ink);font-weight:500">stays with you</b> and never sent to a model.</p>
     <p>Holistic lines ("engineering quality — 40") are split into proposals you can edit or delete.</p>
-  </div>
-</div>
-{% else %}
-<div class="pagehead">
-  <div><h1>Approve what will be checked</h1>
-    <div class="meta"><span>{{ rubric.requirements|length }} requirements</span><span>{{ rubric.requirements|selectattr('verifiable')|list|length }} checked by RepoMan</span><span>{{ rubric.requirements|rejectattr('verifiable')|list|length }} stay with you</span><span>v{{ rubric.version }}</span></div></div>
-</div>
-<div class="legend"><span><i style="background:var(--partial)"></i>proposed by RepoMan — edit or accept</span><span><i style="background:var(--none)"></i>stays with you — never sent to a model</span></div>
-<form method="post" action="/batches/{{ batch.id }}/rubric" class="card">
+  </aside>
+</details>
+
+<form method="post" action="/batches/{{ batch.id }}/rubric" id="editor">
 <table class="compiled">
-  <thead><tr><th>Requirement</th><th>Weight</th><th>Checked by</th><th></th></tr></thead>
-  <tbody>
-  {% for r in rubric.requirements %}
-  <tr class="{% if r.proposedBy == 'repoman' %}proposed{% elif not r.verifiable %}stays{% endif %}">
-    <td>
-      <input type="hidden" name="id" value="{{ r.id }}">
-      <input type="text" name="title-{{ r.id }}" value="{{ r.title }}" aria-label="Title">
-      <textarea name="statement-{{ r.id }}" aria-label="Checkable statement" rows="2">{{ r.statement }}</textarea>
-      {% if not r.verifiable and r.unverifiableReason %}<p class="reason">{{ r.unverifiableReason }}</p>{% endif %}
-    </td>
-    <td><input type="number" name="weight-{{ r.id }}" value="{{ r.weight|int if r.weight == r.weight|int else r.weight }}" min="0" step="0.5" aria-label="Weight"></td>
-    <td>
-      <label class="toggle"><input type="checkbox" name="verifiable-{{ r.id }}" {% if r.verifiable %}checked{% endif %}> RepoMan</label>
-      <div class="who {% if r.proposedBy == 'repoman' %}proposed{% elif not r.verifiable %}stays{% endif %}">{% if r.proposedBy == 'repoman' %}proposed by RepoMan{% elif not r.verifiable %}stays with you{% else %}from your rubric{% endif %}</div>
-    </td>
-    <td class="del"><label class="del"><input type="checkbox" name="delete-{{ r.id }}">remove</label></td>
-  </tr>
-  {% endfor %}
+  <thead><tr><th>Requirement</th><th>How you score it</th><th>Checked by</th><th></th></tr></thead>
+  <tbody id="rows">
+  {% for r in reqs %}{{ row(r) }}{% endfor %}
   </tbody>
 </table>
 <div class="approve">
-  <button class="btn" type="submit">Approve rubric →</button>
-  <span>Unchecking “RepoMan” keeps a line in the rubric and out of the model. Weights are yours; RepoMan never totals them.</span>
+  <button class="btn ghost" type="button" id="add-row">+ Add a requirement</button>
+  <button class="act" type="submit" {% if not reqs %}disabled{% endif %}>Approve rubric →</button>
+  <span>Unchecking “RepoMan” keeps a line in the rubric and out of the model. The scale is yours; the model only ever sees the statement, and RepoMan never totals anything.</span>
 </div>
 </form>
-{% endif %}
+<template id="row-tpl"><table>{{ row(None) }}</table></template>
+
+<script>
+  const rows = document.getElementById('rows'), approve = document.querySelector('#editor .act');
+  const DEFAULTS = ['Missing', 'Weak', 'Adequate', 'Good', 'Excellent'];
+  const num = v => (Number.isInteger(v) ? v : v.toFixed(1));
+
+  function levelRow(id) {
+    const d = document.createElement('div'); d.className = 'lvl';
+    d.innerHTML = `<input type="number" name="lp-${id}" min="0" step="0.5" aria-label="Points"><input type="text" name="ll-${id}" placeholder="Label" aria-label="Label" required><input type="text" name="ld-${id}" placeholder="What earns it" aria-label="Description"><button type="button" class="x" aria-label="Remove level">×</button>`;
+    return d;
+  }
+  function seedLevels(box, max) {  // five classes, evenly spaced up to the current marks — all editable
+    const id = box.closest('tr').querySelector('input[name=id]').value, add = box.querySelector('.add-level');
+    DEFAULTS.forEach((label, i) => {
+      const lvl = levelRow(id);
+      lvl.querySelector('input[type=number]').value = num(Math.round(max * i / 4 * 2) / 2);
+      lvl.querySelector('input[name^=ll-]').value = label;
+      add.before(lvl);
+    });
+  }
+  function syncWeight(tr) {  // levels: the top level's points are the weight
+    const sel = tr.querySelector('select'), w = tr.querySelector('input[name^=weight-]');
+    if (sel.value !== 'levels') return;
+    const pts = [...tr.querySelectorAll('input[name^=lp-]')].map(i => +i.value || 0);
+    w.value = pts.length ? num(Math.max(...pts)) : 0;
+  }
+
+  rows.addEventListener('change', e => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    if (e.target.tagName === 'SELECT') {
+      const box = tr.querySelector('.levels'), w = tr.querySelector('input[name^=weight-]'), on = e.target.value === 'levels';
+      box.hidden = !on; w.readOnly = on;
+      box.querySelectorAll('input').forEach(i => i.disabled = !on);  // hidden levels neither submit nor block validation
+      if (on && !box.querySelector('.lvl')) seedLevels(box, +w.value || 10);
+      syncWeight(tr);
+    }
+    if (e.target.name.startsWith('lp-')) syncWeight(tr);
+  });
+  rows.addEventListener('click', e => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    if (e.target.classList.contains('x')) { e.target.closest('.lvl').remove(); syncWeight(tr); }
+    if (e.target.classList.contains('add-level')) {
+      const lvl = levelRow(tr.querySelector('input[name=id]').value);
+      e.target.before(lvl); lvl.querySelector('input[type=text]').focus();
+    }
+  });
+  document.getElementById('add-row').addEventListener('click', () => {
+    const id = 'n' + Math.random().toString(36).slice(2, 10);
+    const tr = document.getElementById('row-tpl').content.querySelector('tr').cloneNode(true);
+    tr.querySelectorAll('input, select, textarea').forEach(el => { if (el.name) el.name = el.name.replace('__ID__', id); if (el.value === '__ID__') el.value = id; });
+    rows.append(tr); approve.disabled = false; tr.querySelector('input[type=text]').focus();
+  });
+</script>
 {% endblock %}

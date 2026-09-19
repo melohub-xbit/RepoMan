@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from repoman.core.types import (Artifact, Batch, Decision, DocSpan, Evidence, FileRange, Finding, GitObject,
-                                HttpCapture, Requirement, Rubric, RunManifest, RunStatus, SourceSpan,
+                                HttpCapture, Level, Requirement, Rubric, Scale, RunManifest, RunStatus, SourceSpan,
                                 Submission, UsageRecord)
 
 OUT = Path(__file__).parent / "sample_run"
@@ -31,17 +31,26 @@ rubric = Rubric(id="r_cs402", sourceText=RUBRIC_TEXT, compiledBy="fixture")
 batch.rubricId = rubric.id
 
 
-def req(rid, title, statement, weight, span, verifiable=True, reason=None, proposed="evaluator"):
+def req(rid, title, statement, weight, span, verifiable=True, reason=None, proposed="evaluator", scale=None):
     return Requirement(id=rid, rubricId=rubric.id, title=title, statement=statement, weight=weight,
                        sourceSpan=SourceSpan(startChar=span[0], endChar=span[1]), verifiable=verifiable,
-                       unverifiableReason=reason, proposedBy=proposed)
+                       unverifiableReason=reason, proposedBy=proposed, scale=scale or Scale())
+
+
+TEST_LEVELS = Scale(kind="levels", levels=[
+    Level(label="Missing", description="No automated tests.", points=0),
+    Level(label="Token", description="A test file exists but exercises nothing meaningful.", points=5),
+    Level(label="Partial", description="Core logic has tests; major paths untested.", points=10),
+    Level(label="Solid", description="Core logic and error paths tested.", points=15),
+    Level(label="Comprehensive", description="Tests cover logic, errors and integration; run in CI.", points=20),
+])
 
 
 rubric.requirements = [
     req("q1", "JWT authentication", "JWT tokens are issued on login and validated on every protected route.", 15, (49, 84)),
     req("q2", "Role-based authorization", "At least two roles exist and endpoints are restricted by role.", 15, (85, 133)),
-    req("q3", "Caching layer", "A cache (Redis or similar) is configured and actually used by at least one read-heavy endpoint.", 10, (134, 185)),
-    req("q4", "Automated tests", "Automated tests exist, run under a framework, and exercise core logic rather than only the application context.", 20, (186, 237)),
+    req("q3", "Caching layer", "A cache (Redis or similar) is configured and actually used by at least one read-heavy endpoint.", 10, (134, 185), scale=Scale(kind="check")),
+    req("q4", "Automated tests", "Automated tests exist, run under a framework, and exercise core logic rather than only the application context.", 20, (186, 237), scale=TEST_LEVELS),
     req("q5a", "Code quality", "Consistent structure, no dead code, errors handled at boundaries.", 20, (238, 274), proposed="repoman"),
     req("q5b", "Creativity", "Creativity and originality of the solution.", 20, (238, 274), verifiable=False,
         reason="Not locatable in code, report or deployment; this criterion stays with the evaluator.", proposed="repoman"),

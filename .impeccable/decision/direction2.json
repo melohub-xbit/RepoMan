@@ -1,0 +1,109 @@
+{
+  "title": "Choose RepoMan's new visual world",
+  "question": "Bolder round. The deal leads with the Step Row. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "step-row",
+      "label": "The Step Row",
+      "kicker": "THE ROLL",
+      "lineage": "early-80s rhythm machine step sequencers",
+      "thesis": "RepoMan as an instrument panel: the pipeline is a step row that lights as a run advances, every requirement is a key lit by its state, and the chase light is the investigation running.",
+      "palette": ["#1B1D22", "#F2F0EA", "#FF5A36", "#FFB020", "#FFD84A", "#2ECC71"],
+      "materials": ["charcoal panel", "candy-coloured step keys", "lit LEDs", "silkscreen labels"],
+      "viewport": "Charcoal panel. RepoMan set centered in a heavy grotesk, a living step row beneath it (Intake, Compile, Probe, Verify, Decide) with the chase light running once through the steps on load. Two lines of copy below the name, then Get started and See a finding. Scrolling down, the row expands: each step becomes a lit bank explaining what happens there; requirements appear as keys lit green, amber, red, grey.",
+      "risk": "Reads as a music toy if the labels are cute. Silkscreen discipline (plain words, one weight) is what keeps it a tool.",
+      "raised": [
+        {"from": "challenger-shader", "raise": "A living ground: a slow, low-contrast shader-style gradient breathes behind the hero only, never behind copy."},
+        {"from": "challenger-jacquard", "raise": "Ledger discipline: every count is a tabular numeral in mono, aligned in columns."},
+        {"from": "challenger-daylight", "raise": "One warm active band marks the step currently running; the rest stay cool."}
+      ],
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-drum-machine-step-row-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-drum-machine-step-row.webp",
+      "comp": ".impeccable/mocks/decision/step-row.webp"
+    },
+    {
+      "id": "challenger-jacquard",
+      "label": "Punched Brocade",
+      "verdict": "competitive",
+      "lineage": "jacquard looms driven by punched cards",
+      "thesis": "Midnight silk and gold thread: requirements are punched instruction rows, and the finding is the pattern they resolve into.",
+      "palette": ["#0F1A3A", "#F6EBD0", "#D4A73A", "#0A0C14"],
+      "materials": ["midnight silk", "gold weft", "punch-card cream", "ledger digits"],
+      "viewport": "RepoMan centered in gold on midnight; beneath it a punch-card band whose holes fill row by row as the two lines type in. Get started in gold.",
+      "case": "Developers know punch cards; rows resolving into a pattern is exactly claim-to-evidence. Loses to the leader on clarity: gold on navy reads luxury before it reads tool.",
+      "risk": "Dark and rich can drift into 'premium fintech'.",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-jacquard-punched-brocade-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-jacquard-punched-brocade.webp",
+      "comp": ".impeccable/mocks/decision/jacquard.webp"
+    },
+    {
+      "id": "challenger-shader",
+      "label": "Shader Portal",
+      "verdict": "competitive",
+      "lineage": "experiential studio portals, GPU shader grounds",
+      "thesis": "One oversized word on a living single-hue field, the interface floating as thin type over moving pixels.",
+      "palette": ["#0B2A4A", "#3B82F6", "#F8FAFC", "#FF7A45"],
+      "materials": ["fragment-shader ground", "film grain", "one incandescent accent"],
+      "viewport": "RepoMan enormous and centered over a slowly moving blue field; two lines beneath; Get started as the one incandescent element.",
+      "case": "Wins the hero moment outright, which is what was asked for. Loses below the fold: an evidence desk has nothing to say in this grammar once the shader ends.",
+      "risk": "The category's own cliché for AI products; the copy has to carry the tool.",
+      "hero": "https://impeccable.style/worlds/cards/webgl-shader-portal-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/webgl-shader-portal.webp",
+      "comp": ".impeccable/mocks/decision/shader.webp"
+    },
+    {
+      "id": "challenger-daylight",
+      "label": "Daylight Section",
+      "verdict": "declined",
+      "lineage": "architectural section drawings with the sun's path",
+      "thesis": "Limewash white, charcoal cut, a travelling gold sunbeam as the active band.",
+      "palette": ["#F7F5EF", "#2A2C30", "#E8B84A", "#5B7BA6"],
+      "materials": ["limewash", "section poche", "sunbeam gold"],
+      "viewport": "A section through the pipeline, lit room by room.",
+      "case": "Beautiful and calm, but nobody grading code identifies with an architect's section; and calm is what was just rejected.",
+      "kept": "One warm active band for the running step.",
+      "risk": "Calm.",
+      "hero": "https://impeccable.style/worlds/cards/architecture-inhabitable-space-daylight-section-hero.webp"
+    },
+    {
+      "id": "challenger-manifesto",
+      "label": "Blast Manifesto",
+      "verdict": "declined",
+      "lineage": "1914 wood-type manifesto pages",
+      "thesis": "Puce paper, one black ink, condensed wood type in diagonal wedges.",
+      "palette": ["#C9A9A6", "#111111"],
+      "materials": ["wood type", "puce stock"],
+      "viewport": "The name as a wood-type slab.",
+      "case": "A tool for careful judgment cannot shout; diagonal wedges fight a queue and a rubric.",
+      "kept": "Type mass carrying the value, no decoration.",
+      "risk": "Shouts.",
+      "hero": "https://impeccable.style/worlds/cards/design-canon-blast-manifesto-page-hero.webp"
+    },
+    {
+      "id": "challenger-neon",
+      "label": "Neo-Tokyo Neon",
+      "verdict": "declined",
+      "lineage": "rain-black neon signage",
+      "thesis": "Stacked neon in magenta and cyan, one scarlet mark burning at center.",
+      "palette": ["#08080C", "#FF2D95", "#22D3EE", "#E11D2E"],
+      "materials": ["neon tubes", "wet reflections"],
+      "viewport": "The name as a neon sign.",
+      "case": "Neon-on-black is the AI product look the brief rules out.",
+      "kept": "The one mark always weighted at center.",
+      "risk": "Cliché.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-neo-tokyo-neon-night-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "The modern devtool landing: off-white, one saturated blue, a big sans headline centered, a product screenshot, three feature blocks. Executed at Linear's level.",
+    "palette": ["#FAFAF9", "#18181B", "#2563EB"],
+    "materials": ["clean grid", "product screenshot", "soft shadows"],
+    "viewport": "Centered name and two lines, Get started, screenshot below.",
+    "risk": "Indistinguishable from every other tool landing; hard to be 'best-designed thing at the event' from here."
+  },
+  "steer": true
+}

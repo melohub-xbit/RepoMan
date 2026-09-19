@@ -93,12 +93,18 @@ type Rubric = {
   compiledBy: string;         // model ID + prompt hash, for replay
 };
 
+type Scale =
+  | { kind: "check" }                                  // met / not met → 0 or weight
+  | { kind: "points" }                                 // 0..weight
+  | { kind: "levels"; levels: { label: string; description?: string; points: number }[] };
+
 type Requirement = {
   id: string; rubricId: string;
   title: string;
-  statement: string;          // the checkable form
-  weight: number;
-  sourceSpan: { startChar: number; endChar: number };  // back into sourceText
+  statement: string;          // the checkable form — the only part a model ever sees
+  weight: number;             // max marks; for "levels", the highest level's points
+  scale: Scale;               // how the human scores it. Rendered in the decision strip, never sent to a model
+  sourceSpan: { startChar: number; endChar: number } | null;  // back into sourceText; null when typed in directly
   verifiable: boolean;        // false = "creativity"; stays 100% human
   unverifiableReason?: string;
   proposedBy: "evaluator" | "repoman";   // "repoman" when the compiler decomposed a holistic line
@@ -107,6 +113,14 @@ type Requirement = {
 
 `verifiable: false` requirements are **shown to the evaluator and never sent to a
 model**. Pretending to check them is the fastest way to lose trust.
+
+`scale` is the evaluator's instrument, not RepoMan's. Level descriptions ("some
+tests" / "comprehensive tests") are band language; feeding them to the verify
+agent invites it to name a band in `summary`, which is a score by another name.
+The agent gets `statement`; the human gets the levels. Requirements enter a
+rubric three ways and land in the same table: compiled from pasted prose (the
+compiler also infers `scale` from "— 15 marks" or band descriptors), typed in one
+at a time (`sourceSpan: null`), or both.
 
 ```ts
 type Evidence = {
@@ -155,6 +169,7 @@ type Decision = {
   submissionId: string; requirementId: string;
   evaluatorId: string;
   score: number | null;       // the human's number. RepoMan never writes here.
+  level?: string;             // the chosen Level.label when the scale is "levels"
   note: string;
   overrodeFindingId?: string;
   decidedAt: string;

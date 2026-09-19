@@ -8,7 +8,21 @@
   {% else %}
   <button class="btn" type="submit">Record</button>
   {% endif %}
-  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks" placeholder="—"> / {{ req.weight|int }}</label>
+  {% set w = req.weight|int if req.weight == req.weight|int else req.weight %}
+  {% if req.scale.kind == 'check' %}
+  <fieldset class="seg" aria-label="Met or not met">
+    <label><input type="radio" name="met" value="1">Met · {{ w }}</label>
+    <label><input type="radio" name="met" value="0">Not met · 0</label>
+  </fieldset>
+  {% elif req.scale.kind == 'levels' %}
+  <fieldset class="levels-pick" aria-label="Level">
+    {% for l in req.scale.levels %}
+    <label><input type="radio" name="level" value="{{ loop.index0 }}"><span class="lbl">{{ l.label }}</span><span class="pts">{{ l.points|int if l.points == l.points|int else l.points }}</span>{% if l.description %}<span class="desc">{{ l.description }}</span>{% endif %}</label>
+    {% endfor %}
+  </fieldset>
+  {% else %}
+  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks" placeholder="—"> / {{ w }}</label>
+  {% endif %}
   <label class="note"><input name="note" placeholder="Note — optional" autocomplete="off"></label>
   {% if req.verifiable and f %}
   <label class="precedent">precedent <input name="precedent" placeholder="Optional rule for the rest of this batch, e.g. accept application.yml cache config as caching evidence" autocomplete="off"></label>

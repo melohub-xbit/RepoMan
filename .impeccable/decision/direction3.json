@@ -1,0 +1,132 @@
+{
+  "title": "Choose RepoMan's new visual world",
+  "question": "Re-roll. The roll assigned The Instrument. Keep it, take the pick or an alternate, or re-roll again.",
+  "options": [
+    {
+      "id": "instrument",
+      "label": "The Instrument",
+      "kicker": "THE ROLL",
+      "lineage": "Braun and Rams control panels, 1960s to 80s",
+      "thesis": "RepoMan as a precision instrument: a pale body, exact labels, and signal-coloured indicators that light for each state. Nothing decorative, everything readable at a glance.",
+      "palette": ["#ECEBE6", "#1C1C1E", "#F0541E", "#2A9D5C", "#F2B01E", "#8A8D93"],
+      "materials": ["pale enamel body", "black engraved labels", "signal indicators", "brushed control strip"],
+      "viewport": "RepoMan set centered in a geometric grotesk on the pale body. Beneath the name, an indicator strip: five lamps labelled Intake, Compile, Probe, Verify, Decide that light in sequence on load, like a machine powering up. Two lines of copy. Get started in signal orange, See a finding as a dark outline. Below the fold, each stage is a panel section with its own indicator; findings appear as lamps lit green, amber, red or grey.",
+      "risk": "Calm body with hot accents can read cold if the indicators are shy. The signal colours must be saturated and the lamps must actually light.",
+      "raised": [
+        {"from": "challenger-riso", "raise": "Ink commitment: the signal colours are used at full saturation on whole elements, never as tints or outlines."},
+        {"from": "challenger-teletext", "raise": "Fixed cells: counts and stage names sit on one strict grid so the panel reads like a real instrument."}
+      ],
+      "comp": ".impeccable/mocks/decision/instrument.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "The Metro Map",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "transit maps: Beck's London Underground, Vignelli's New York",
+      "thesis": "The pipeline is a line with stations, and each finding state is a line colour. Bold strokes on white, round station markers, nothing that is not a route or a stop.",
+      "palette": ["#FFFFFF", "#101114", "#E32017", "#0098D4", "#00782A", "#FFD300"],
+      "materials": ["thick line strokes", "white station discs", "interchange rings", "grotesque caps"],
+      "viewport": "RepoMan centered; a single thick line runs under it through five stations (Intake, Compile, Probe, Verify, Decide) and draws itself on load. Two lines of copy. Get started on the line's colour. Scrolling down, the line continues as the page's spine and branches into the finding states.",
+      "risk": "The most familiar of the lively worlds; the drawn line and strict geometry are what keep it from generic infographic.",
+      "comp": ".impeccable/mocks/decision/metro.webp"
+    },
+    {
+      "id": "challenger-riso",
+      "label": "Risograph",
+      "verdict": "competitive",
+      "lineage": "risograph print systems",
+      "thesis": "Warm paper and two or three fluorescent spot inks that multiply where they overlap, with a printed shudder on hover.",
+      "palette": ["#F4EFE4", "#FF48B0", "#2B4CFF", "#FFC700", "#1A1A1A"],
+      "materials": ["paper grain", "fluoro pink", "federal blue", "sunflower ink"],
+      "viewport": "RepoMan overprinted in two inks that misregister by a hair; two lines in black; Get started as a blue block.",
+      "case": "Lively by definition and loved by the hackathon crowd; loses on clarity because misregistration fights legibility on a tool.",
+      "risk": "The shudder must be a hover, never the rest state.",
+      "hero": "https://impeccable.style/worlds/cards/risograph-web-system-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/risograph-web-system.webp",
+      "comp": ".impeccable/mocks/decision/riso.webp"
+    },
+    {
+      "id": "challenger-teletext",
+      "label": "Teletext",
+      "verdict": "declined",
+      "lineage": "broadcast teletext magazines",
+      "thesis": "The fixed eight colours on black in a 40 by 24 character grid.",
+      "palette": ["#000000", "#FFFF00", "#00FFFF", "#FFFFFF", "#FF0000"],
+      "materials": ["bitmap face", "block mosaics"],
+      "viewport": "Page 100.",
+      "case": "Retro novelty on a projector; the grid cannot hold a finding's prose.",
+      "kept": "Fixed cells for every count.",
+      "risk": "Novelty.",
+      "hero": "https://impeccable.style/worlds/cards/broadcast-programming-teletext-service-hero.webp"
+    },
+    {
+      "id": "challenger-gameboy",
+      "label": "Four-Shade Field",
+      "verdict": "declined",
+      "lineage": "Game Boy's four greens",
+      "thesis": "Exactly four greens and dither for everything else.",
+      "palette": ["#9BBC0F", "#8BAC0F", "#306230", "#0F380F"],
+      "materials": ["8 by 8 tiles", "dither"],
+      "viewport": "A pixel title screen.",
+      "case": "Four greens cannot carry four finding states plus flags.",
+      "kept": "Hierarchy by inversion, not by size.",
+      "risk": "Toy.",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-gameboy-four-shade-field-hero.webp"
+    },
+    {
+      "id": "challenger-toyshelf",
+      "label": "Window-Box Shelf",
+      "verdict": "declined",
+      "lineage": "toy-aisle window boxes",
+      "thesis": "Cream board, gingham trims, cellophane windows.",
+      "palette": ["#F6EED9", "#5BA85A", "#C43C5B", "#4A90D9", "#FFD23F"],
+      "materials": ["gingham", "cellophane"],
+      "viewport": "A shelf of boxed sets.",
+      "case": "Friendly, but a grading tool boxed like a toy undercuts the judgment it exists to support.",
+      "kept": "One end-cap hero, the rest in tidy rows.",
+      "risk": "Cute.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-window-box-toy-shelf-hero.webp"
+    },
+    {
+      "id": "challenger-raku",
+      "label": "Raku Smoke",
+      "verdict": "declined",
+      "lineage": "raku firing",
+      "thesis": "Soot black, crackled white glaze, one ember orange.",
+      "palette": ["#141210", "#E9E4DA", "#F26A1B"],
+      "materials": ["carbonized clay", "crackle glaze"],
+      "viewport": "A hot vessel.",
+      "case": "Unrehearsed asymmetry is the opposite of an audit trail.",
+      "kept": "Ember orange reserved for the one thing still running.",
+      "risk": "Mood.",
+      "hero": "https://impeccable.style/worlds/cards/clay-ceramics-fracture-raku-smoke-flash-hero.webp"
+    },
+    {
+      "id": "challenger-streetwear",
+      "label": "Industrial Quote Grammar",
+      "verdict": "declined",
+      "lineage": "industrial streetwear labels",
+      "thesis": "Ordinary words in straight quotes, hazard stripes, orange zip ties.",
+      "palette": ["#F5F5F2", "#111111", "#FF6A00"],
+      "materials": ["cotton", "nylon", "hazard tape"],
+      "viewport": "\"REPOMAN\" on a crate label.",
+      "case": "Irony grammar on a fairness tool reads as mockery.",
+      "kept": "Disabled things take a stripe across them.",
+      "risk": "Irony.",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-industrial-quote-grammar-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "The modern devtool landing: off-white, one saturated blue, a big sans headline centered, a product screenshot, three feature blocks. Executed at Linear's level.",
+    "palette": ["#FAFAF9", "#18181B", "#2563EB"],
+    "materials": ["clean grid", "product screenshot", "soft shadows"],
+    "viewport": "Centered name and two lines, Get started, screenshot below.",
+    "risk": "Indistinguishable from every other tool landing."
+  },
+  "steer": true,
+  "followup": true
+}

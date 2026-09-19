@@ -10,7 +10,7 @@ import json
 import time
 from pathlib import Path
 
-from repoman.core.types import Precedent, Requirement, Rubric, RunStatus, SourceSpan
+from repoman.core.types import Precedent, Requirement, Rubric, RunStatus, SourceSpan, new_id
 from repoman.store import Store
 
 SAMPLE = Path(__file__).resolve().parent.parent / "fixtures" / "sample_run"
@@ -20,7 +20,7 @@ def compile_rubric(source_text: str, artifact_kinds: list[str]) -> Rubric:
     time.sleep(1.5)
     sample = Rubric.model_validate(json.loads((SAMPLE / "rubric.json").read_text()))
     rubric = Rubric(sourceText=source_text, compiledBy="stub")
-    rubric.requirements = [Requirement(**{**r.model_dump(), "id": f"q{i+1}", "rubricId": rubric.id})
+    rubric.requirements = [Requirement(**{**r.model_dump(), "id": new_id(), "rubricId": rubric.id})
                            for i, r in enumerate(sample.requirements)]
     return rubric
 

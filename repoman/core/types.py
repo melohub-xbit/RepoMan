@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 def now() -> str:
@@ -94,13 +94,33 @@ class SourceSpan(BaseModel):
     endChar: int
 
 
+class Level(BaseModel):
+    label: str
+    description: str = ""
+    points: float
+
+
+class Scale(BaseModel):
+    """How the *human* scores a requirement. Never shown to a model; `statement` is what RepoMan checks."""
+
+    kind: Literal["check", "points", "levels"] = "points"
+    levels: list[Level] = []  # only when kind == "levels"
+
+    @model_validator(mode="after")
+    def _levels_present(self):
+        if self.kind == "levels" and not self.levels:
+            raise ValueError("a levels scale needs at least one level")
+        return self
+
+
 class Requirement(BaseModel):
     id: str = Field(default_factory=new_id)
     rubricId: str
     title: str
     statement: str
-    weight: float
-    sourceSpan: SourceSpan
+    weight: float  # max marks; for a levels scale, the highest level's points
+    scale: Scale = Scale()
+    sourceSpan: SourceSpan | None = None  # None when typed in directly rather than compiled from sourceText
     verifiable: bool
     unverifiableReason: str | None = None
     proposedBy: Literal["evaluator", "repoman"] = "evaluator"
@@ -172,6 +192,7 @@ class RequirementDraft(BaseModel):
     title: str
     statement: str
     weight: float
+    scale: Scale = Scale()
     sourceSpan: SourceSpan
     verifiable: bool
     unverifiableReason: str | None = None
@@ -191,6 +212,7 @@ class Decision(BaseModel):
     requirementId: str
     evaluatorId: str
     score: float | None = None  # the human's number. RepoMan never writes here.
+    level: str | None = None  # the chosen Level.label when the scale is "levels"
     note: str = ""
     overrodeFindingId: str | None = None
     decidedAt: str = Field(default_factory=now)
@@ -276,4 +298,9 @@ if __name__ == "__main__":
     f = Finding(submissionId="s", requirementId="r", state="VERIFIED", summary="x", evidence=[ev],
                 confidence="high", confidenceReason="", producedBy="test")
     assert Finding.model_validate_json(f.model_dump_json()).evidence[0].locator.kind == "file_range"
+    try:
+        Scale(kind="levels")
+        raise SystemExit("schema accepted a levels scale with no levels")
+    except ValidationError:
+        pass
     print("types ok")

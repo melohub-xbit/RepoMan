@@ -4,7 +4,7 @@
     "confidenceReason": "Three independent sources agree: filter code, controller code, live 401 from the deployment.",
     "evidence": [
       {
-        "id": "78ad031965d8",
+        "id": "cb0ca1c073f0",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 60,
@@ -15,11 +15,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "String token = header.substring(7);\n        Claims claims = jwtService.parse(token);",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "a46cb7d36109",
+        "id": "dae087f94745",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 41,
@@ -30,11 +30,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "return ResponseEntity.ok(new TokenResponse(jwtService.issue(user)));",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "c1711b8cbc7e",
+        "id": "a7b0a912a48b",
         "locator": {
           "capturedAt": "2026-09-18T14:02:11Z",
           "kind": "http_capture",
@@ -45,11 +45,11 @@
         "probeId": "deploy",
         "provenance": "probe",
         "quote": "HTTP 401 Unauthorized without Authorization header",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "c1b54db6ebf1",
+        "id": "1abe19abaca0",
         "locator": {
           "artifactId": "a_report",
           "kind": "doc_span",
@@ -58,7 +58,7 @@
         "probeId": null,
         "provenance": "model",
         "quote": "Every request to /api/** passes through JwtFilter, which validates the signature and expiry",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -66,7 +66,7 @@
       "CONTRIBUTION_SKEW",
       "TIMELINE_ANOMALY"
     ],
-    "id": "481c41cfd545",
+    "id": "eeee9b511e2a",
     "producedBy": "fixture",
     "questions": [],
     "requirementId": "q1",
@@ -80,7 +80,7 @@
     "confidenceReason": "Enum and config are unambiguous; the report's claim is directly quoted.",
     "evidence": [
       {
-        "id": "a11a7aa888f5",
+        "id": "d41ac09bb7b1",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 12,
@@ -91,11 +91,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "public enum UserRole {\n    ADMIN,\n    USER\n}",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "8cb105a4ae92",
+        "id": "3b0b3c09b049",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 68,
@@ -106,11 +106,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": ".requestMatchers(\"/admin/**\").hasRole(\"ADMIN\")",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "6828294dddb7",
+        "id": "a6956b0dc7b6",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 29,
@@ -121,11 +121,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "@PreAuthorize(\"hasRole('ADMIN')\")",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "9d03d00572f7",
+        "id": "52f95bd193ca",
         "locator": {
           "artifactId": "a_report",
           "kind": "doc_span",
@@ -134,7 +134,7 @@
         "probeId": null,
         "provenance": "model",
         "quote": "full RBAC across all five user tiers: guest, member, lead, admin and owner",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -142,7 +142,7 @@
       "CONTRIBUTION_SKEW",
       "TIMELINE_ANOMALY"
     ],
-    "id": "1d505e1e4e31",
+    "id": "142896adcdde",
     "producedBy": "fixture",
     "questions": [
       "The report describes five user tiers \u2014 where are lead, member and owner defined?",
@@ -159,7 +159,7 @@
     "confidenceReason": "Dependency declared with zero imports (deterministic). Absence in the tree is a search result, not a proof of absence.",
     "evidence": [
       {
-        "id": "9b615dce44c6",
+        "id": "30a9698d1afe",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 51,
@@ -170,11 +170,11 @@
         "probeId": "deps",
         "provenance": "probe",
         "quote": "<artifactId>spring-boot-starter-data-redis</artifactId>",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "9e75abbd2ae4",
+        "id": "69eb20899b2e",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 18,
@@ -185,11 +185,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "spring:\n  datasource:\n    url: jdbc:postgresql://localhost/taskflow",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "e8ef94fa1ebb",
+        "id": "80173aa7bb58",
         "locator": {
           "artifactId": "a_report",
           "kind": "doc_span",
@@ -198,7 +198,7 @@
         "probeId": null,
         "provenance": "model",
         "quote": "served from Redis with a 60-second TTL",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -206,7 +206,7 @@
       "CONTRIBUTION_SKEW",
       "TIMELINE_ANOMALY"
     ],
-    "id": "ae496edd2ded",
+    "id": "bd9d5c09bcb0",
     "producedBy": "fixture",
     "questions": [
       "Where is the cache wired? Show a request that hits Redis.",
@@ -223,7 +223,7 @@
     "confidenceReason": "Test discovery is deterministic; the count and the report's figure disagree.",
     "evidence": [
       {
-        "id": "118e02e357f4",
+        "id": "090d5cb59de0",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 16,
@@ -234,11 +234,11 @@
         "probeId": "tests",
         "provenance": "probe",
         "quote": "@Test\n    void contextLoads() {\n    }",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "ad290a2aa0b4",
+        "id": "699b2fa1380c",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 38,
@@ -249,11 +249,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "mockMvc.perform(get(\"/api/tasks\")).andExpect(status().isOk());",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "60f2327524d8",
+        "id": "9850c7e35d94",
         "locator": {
           "artifactId": "a_report",
           "kind": "doc_span",
@@ -262,7 +262,7 @@
         "probeId": null,
         "provenance": "model",
         "quote": "over 40 test cases executed on every commit",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -270,7 +270,7 @@
       "CONTRIBUTION_SKEW",
       "TIMELINE_ANOMALY"
     ],
-    "id": "6eecc2cfa4df",
+    "id": "932affad111a",
     "producedBy": "fixture",
     "questions": [
       "Which of the 14 tests would fail if JwtFilter stopped validating expiry?"
@@ -286,7 +286,7 @@
     "confidenceReason": "Model-derived judgement on a criterion the evaluator proposed; treat as a pointer, not a verdict.",
     "evidence": [
       {
-        "id": "169be3a68dc6",
+        "id": "5272fe6144fc",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 74,
@@ -297,11 +297,11 @@
         "probeId": null,
         "provenance": "model",
         "quote": "} catch (Exception e) {\n            // TODO handle\n        }",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       },
       {
-        "id": "afe5696c15c9",
+        "id": "5683e96a59b5",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 104,
@@ -312,7 +312,7 @@
         "probeId": null,
         "provenance": "model",
         "quote": "// @GetMapping(\"/export\")\n    // public ... exportTasks(",
-        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "resolvedAt": "2026-09-19T11:05:04+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -320,7 +320,7 @@
       "CONTRIBUTION_SKEW",
       "TIMELINE_ANOMALY"
     ],
-    "id": "87b6672d5a02",
+    "id": "618984ada594",
     "producedBy": "fixture",
     "questions": [
       "What is the intended behaviour when OrderService fails at line 71?"

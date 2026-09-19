@@ -42,7 +42,7 @@
   <div class="decision">
     <span class="k">Your decision</span>
     <span class="done"><svg class="mark lg" aria-hidden="true"><use href="#i-tick"/></svg>
-      <span>{{ 'Overridden' if d.overrodeFindingId else 'Accepted' }}{% if d.score is not none %} · <b>{{ d.score|int if d.score == d.score|int else d.score }}</b> / {{ req.weight|int }} marks{% endif %}{% if d.note %} · <span class="n">{{ d.note }}</span>{% endif %}</span>
+      <span>{{ 'Overridden' if d.overrodeFindingId else 'Accepted' }}{% if d.level %} · <b>{{ d.level }}</b>{% endif %}{% if d.score is not none %} · {% if req.scale.kind == 'check' %}<b>{{ 'Met' if d.score else 'Not met' }}</b> · {% endif %}<b>{{ d.score|int if d.score == d.score|int else d.score }}</b> / {{ req.weight|int }} marks{% endif %}{% if d.note %} · <span class="n">{{ d.note }}</span>{% endif %}</span>
     </span>
     <button class="btn quiet sm" type="button" onclick="this.closest('.decision').outerHTML = document.getElementById('tpl-{{ req.id }}').innerHTML">Change</button>
   </div>
