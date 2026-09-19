@@ -25,7 +25,7 @@
 {% endif %}
 
 {% if not rubric %}
-<div class="card empty"><b>No rubric yet</b>Paste and approve one before adding submissions — findings are only as good as the requirements they answer.<br><a class="btn" href="/batches/{{ batch.id }}/rubric">Paste the rubric →</a></div>
+<div class="card empty"><b>No rubric yet</b>Paste and approve one before adding submissions. Findings are only as good as the requirements they answer.<br><a class="btn" href="/batches/{{ batch.id }}/rubric">Paste the rubric →</a></div>
 {% elif not rows %}
 <div class="card empty"><b>Nothing submitted yet</b>Add a GitHub URL below. A report PDF and a deployed URL make the findings richer.</div>
 {% else %}
@@ -60,7 +60,7 @@
       <ul class="precedents">{% for p in precedents %}<li>{{ p.rule }}<span class="k">applies to runs after {{ p.appliesFrom[:16].replace('T',' ') }}</span></li>{% endfor %}</ul></div>
     {% else %}
     <div class="card aside"><span class="k">How to read the queue</span>
-      <p><b>Evidence found</b> is a count of requirements with verified evidence — not a grade.</p>
+      <p><b>Evidence found</b> is a count of requirements with verified evidence, not a grade.</p>
       <p><b>Findings</b> shows the state of every checked requirement at a glance.</p>
       <p><b>Flags</b> are integrity signals from the git history and the injection scan. Look before you score.</p>
       <p>Open a submission to read each finding, open its evidence in place, and enter your marks.</p></div>

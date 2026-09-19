@@ -121,9 +121,7 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
-    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">'
-           '<path d="M3 6.5h9M3 12h9M3 17.5h6" stroke="#15171b" stroke-width="2"/><path d="M15.5 3.5v17" stroke="#6b7078" stroke-width="1.2"/>'
-           '<path d="M17.5 12.5l2 2.2 3.5-4.7" stroke="#1f5fbf" stroke-width="2.2"/></svg>')
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -14 28 28"><g fill="#17181b"><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(0) translate(3.4 0)"/><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(60) translate(3.4 0)"/><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(120) translate(3.4 0)"/><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(180) translate(3.4 0)"/><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(240) translate(3.4 0)"/><rect x="-1.9" y="-12" width="3.8" height="14" rx="1.9" transform="rotate(300) translate(3.4 0)"/></g></svg>')
     return Response(svg, media_type="image/svg+xml")
 
 

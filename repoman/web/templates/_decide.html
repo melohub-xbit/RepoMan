@@ -21,9 +21,9 @@
     {% endfor %}
   </fieldset>
   {% else %}
-  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks" placeholder="—"> / {{ w }}</label>
+  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks" placeholder="0"> / {{ w }}</label>
   {% endif %}
-  <label class="note"><input name="note" placeholder="Note — optional" autocomplete="off"></label>
+  <label class="note"><input name="note" placeholder="Note (optional)" autocomplete="off"></label>
   {% if req.verifiable and f %}
   <label class="precedent">precedent <input name="precedent" placeholder="Optional rule for the rest of this batch, e.g. accept application.yml cache config as caching evidence" autocomplete="off"></label>
   {% endif %}

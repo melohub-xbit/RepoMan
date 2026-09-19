@@ -14,7 +14,7 @@
       <p class="summary">Not checked by RepoMan. {{ req.unverifiableReason }}</p>
     {% elif f %}
       <p class="summary">{{ f.summary }}</p>
-      <p class="confidence"><b>{{ f.confidence }} confidence</b> — {{ f.confidenceReason }}{% if f.searchExhausted %} Search stopped at the tool-call cap.{% endif %}</p>
+      <p class="confidence"><b>{{ f.confidence }} confidence</b>: {{ f.confidenceReason }}{% if f.searchExhausted %} Search stopped at the tool-call cap.{% endif %}</p>
     {% else %}
       <p class="summary" style="color:var(--graphite)">No finding was produced for this requirement.</p>
     {% endif %}

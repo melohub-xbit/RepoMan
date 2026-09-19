@@ -20,6 +20,6 @@
   <td class="hide-sm"><div class="tally">{% for s, n in r.tally.items()|sort(attribute='0') %}<span class="chip state-{{ s }}" title="{{ s|lower }}">{{ mark(s) }}<b>{{ n }}</b></span>{% endfor %}</div></td>
   <td class="hide-sm"><div class="tally">{% for f in r.flags %}<span class="chip state-FLAGGED">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}</div></td>
   {% endif %}
-  <td class="decided">{% if r.decided %}<b>{{ r.decided }}</b> of {{ r.claims|length }}{% else %}—{% endif %}</td>
+  <td class="decided">{% if r.decided %}<b>{{ r.decided }}</b> of {{ r.claims|length }}{% else %}none{% endif %}</td>
   <td class="act-cell">{% if not running %}<a class="btn ghost sm" href="/runs/{{ r.run_id }}">Open →</a>{% endif %}</td>
 </tr>
