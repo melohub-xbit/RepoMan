@@ -20,6 +20,7 @@ the structured-output contract, and the resolver rule.
 | `AWS_REGION` | unset | e.g. `us-east-1` |
 | `REPOMAN_BUCKET` | unset → `LocalStore(./data)` | bucket name → `S3Store` |
 | `REPOMAN_TOKEN` | unset (no auth) | shared token for the web UI |
+| `GROQ_API_KEY` | test bench only: Groq's OpenAI-compatible endpoint (`llama-3.3-70b-versatile`) when neither Ollama nor Bedrock is at hand. Not a track; submissions leave the machine. | unset |
 
 **When touching types**, `docs/03-data-model.md` is the source of truth and
 `repoman/core/types.py` changes in the same commit.

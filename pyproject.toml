@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Evidence-gathering copilot for people who evaluate software they did not write"
 requires-python = ">=3.13"
 dependencies = [
-    "strands-agents[ollama]>=1.56.0",
+    "strands-agents[ollama,openai]>=1.56.0",
     "pydantic>=2.9",
     "fastapi>=0.115",
     "uvicorn>=0.32",

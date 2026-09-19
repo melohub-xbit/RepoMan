@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"  # free tier, tool calling; a test bench, not a track
 DEFAULT_REGION = "us-east-1"
 
 
@@ -21,6 +22,16 @@ def make_model():
 
         return OllamaModel(host=host, model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_OLLAMA_MODEL),
                            temperature=0)
+
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        # Test bench only: Groq's OpenAI-compatible endpoint, free and fast, for exercising the prompts
+        # when neither a local model nor Bedrock is at hand. Submissions leave the machine on this path.
+        from strands.models.openai import OpenAIModel
+
+        return OpenAIModel(client_args={"api_key": groq_key, "base_url": "https://api.groq.com/openai/v1"},
+                           model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_GROQ_MODEL),
+                           params={"temperature": 0})
 
     from strands.models import BedrockModel
 
@@ -48,4 +59,6 @@ def model_id() -> str:
     """What to record in the RunManifest, so a disputed finding can be reproduced."""
     if os.environ.get("REPOMAN_OLLAMA_HOST"):
         return f"ollama:{os.environ.get('REPOMAN_MODEL_ID', DEFAULT_OLLAMA_MODEL)}"
+    if os.environ.get("GROQ_API_KEY"):
+        return f"groq:{os.environ.get('REPOMAN_MODEL_ID', DEFAULT_GROQ_MODEL)}"
     return f"bedrock:{os.environ.get('REPOMAN_MODEL_ID', 'unset')}"

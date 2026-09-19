@@ -20,8 +20,8 @@ RUBRIC = """\
 """
 
 needs_model = pytest.mark.skipif(
-    not (os.environ.get("REPOMAN_OLLAMA_HOST") or os.environ.get("REPOMAN_MODEL_ID")),
-    reason="no model configured; set REPOMAN_OLLAMA_HOST or REPOMAN_MODEL_ID",
+    not (os.environ.get("REPOMAN_OLLAMA_HOST") or os.environ.get("REPOMAN_MODEL_ID") or os.environ.get("GROQ_API_KEY")),
+    reason="no model configured; set REPOMAN_OLLAMA_HOST, GROQ_API_KEY or REPOMAN_MODEL_ID",
 )
 
 
