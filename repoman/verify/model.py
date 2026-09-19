@@ -37,7 +37,10 @@ def make_model():
     kwargs = {"model_id": model_id, "region_name": os.environ.get("AWS_REGION", DEFAULT_REGION),
               "temperature": 0}
     if os.environ.get("REPOMAN_CACHE") == "1":
-        kwargs |= {"cache_prompt": "default", "cache_tools": "default"}
+        # strands 1.56: cache_prompt= is deprecated (warns); cache_config carries the system-prompt cache point
+        from strands.models.bedrock import CacheConfig
+
+        kwargs |= {"cache_config": CacheConfig(strategy="auto"), "cache_tools": "default"}
     return BedrockModel(**kwargs)
 
 

@@ -86,8 +86,18 @@ else
       --instance-configuration "{\"Cpu\":\"1 vCPU\",\"Memory\":\"2 GB\",\"InstanceRoleArn\":\"${INSTANCE_ROLE_ARN}\"}" >/dev/null
 fi
 
+# App Runner has no CLI waiters (botocore ships none for it), so poll the status ourselves.
+# A first deploy takes about five minutes; OPERATION_IN_PROGRESS is normal until then.
 echo "==> waiting for the service to settle"
-aws apprunner wait service-updated --region "$AWS_REGION" --service-arn "$ARN" 2>/dev/null || true
+for _ in $(seq 1 60); do
+  STATUS="$(aws apprunner describe-service --region "$AWS_REGION" --service-arn "$ARN" \
+             --query 'Service.Status' --output text)"
+  case "$STATUS" in
+    RUNNING) break ;;
+    CREATE_FAILED|DELETE_FAILED|DELETED) echo "error: service status $STATUS" >&2; exit 1 ;;
+    *) sleep 10 ;;
+  esac
+done
 URL="$(aws apprunner describe-service --region "$AWS_REGION" --service-arn "$ARN" \
         --query 'Service.ServiceUrl' --output text)"
 echo
