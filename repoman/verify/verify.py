@@ -15,8 +15,9 @@ Four rules from `docs/04` are implemented here, and each of them is a place wher
 
 from __future__ import annotations
 
+import os
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 from strands import Agent
@@ -28,7 +29,7 @@ from repoman.verify.model import make_model, model_id
 from repoman.verify.tools import ToolBox
 
 TOOL_CAP = 12
-MAX_WORKERS = 4  # Bedrock throttles above this on a fresh account (docs/02)
+MAX_WORKERS = int(os.environ.get("REPOMAN_WORKERS", "4"))  # 1 on a rate-limited test bench (Groq: 8k tokens/min)
 THROTTLE_RETRIES = 3
 
 VERIFY_SYSTEM = """\
@@ -78,8 +79,13 @@ class VerifyOutcome:
 def verify_all(requirements: list[Requirement], checkout: Checkout, *, submission_id: str,
                probe_summary: str = "", quarantined: frozenset[str] = frozenset(),
                precedents: list[Precedent] = (), flags: list[FlagKind] = (),
-               on_progress=None) -> VerifyOutcome:
-    """Fan out across requirements. Unverifiable ones are never sent to a model."""
+               on_progress=None, on_finding=None) -> VerifyOutcome:
+    """Fan out across requirements. Unverifiable ones are never sent to a model.
+
+    Findings are delivered as they complete, not in rubric order: `on_finding(finding)` fires for
+    each one so the caller can persist it and the evaluator can start reading the first card while
+    the rest are still being investigated.
+    """
     checkable = [r for r in requirements if r.verifiable]
     outcome = VerifyOutcome()
     if not checkable:
@@ -93,12 +99,16 @@ def verify_all(requirements: list[Requirement], checkout: Checkout, *, submissio
                                   precedents=precedents, flags=flags)
 
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(checkable))) as pool:
-        for finding, usage, dropped in pool.map(one, checkable):
+        futures = [pool.submit(one, req) for req in checkable]
+        for fut in as_completed(futures):
+            finding, usage, dropped = fut.result()
             outcome.findings.append(finding)
             if usage:
                 outcome.usage.append(usage)
             outcome.mismatches += dropped
             done += 1
+            if on_finding:
+                on_finding(finding)
             if on_progress:
                 on_progress(done, len(checkable), finding.requirementId)
 

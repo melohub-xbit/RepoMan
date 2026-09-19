@@ -21,5 +21,5 @@
   <td class="hide-sm"><div class="tally">{% for f in r.flags %}<span class="chip state-FLAGGED">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}</div></td>
   {% endif %}
   <td class="decided">{% if r.decided %}<b>{{ r.decided }}</b> of {{ r.claims|length }}{% else %}none{% endif %}</td>
-  <td class="act-cell">{% if not running %}<a class="btn ghost sm" href="/runs/{{ r.run_id }}">Open →</a>{% endif %}</td>
+  <td class="act-cell">{% if not running %}<a class="btn ghost sm" href="/runs/{{ r.run_id }}">Open →</a>{% elif r.status.stage in ('verify', 'claims', 'contradict') %}<a class="btn ghost sm" href="/runs/{{ r.run_id }}">Watch →</a>{% endif %}</td>
 </tr>

@@ -31,7 +31,9 @@
 </div>
 {% endif %}
 
-<nav class="reqindex" aria-label="Requirements">
+{% if status.stage not in ('done', 'failed') %}{% include "_live.html" %}{% endif %}
+
+<nav class="reqindex" id="reqindex" aria-label="Requirements">
   {% for c in claims %}<a href="#claim-{{ c.req.id }}" class="{% if c.decision %}decided{% endif %}"><span class="n">{{ c.pos }}</span>{% if not c.req.verifiable %}{{ mark('none') }}{% elif c.finding %}<span class="state state-{{ c.finding.state }}">{{ mark(c.finding.state) }}</span>{% else %}{{ mark('none') }}{% endif %}{{ c.req.title }}</a>{% endfor %}
 </nav>
 

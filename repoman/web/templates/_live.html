@@ -1,0 +1,19 @@
+<div id="live" class="live" hx-get="/runs/{{ run_id }}/live" hx-trigger="every 3s" hx-swap="outerHTML">
+  <span class="step">{{ status.stage }}</span>{% if status.total %} <span class="n">{{ status.done }} of {{ status.total }}</span>{% endif %}{% if status.detail %} <span class="why">{{ status.detail }}</span>{% endif %}
+  <span class="why">findings appear here as each investigation finishes</span>
+</div>
+{% if oob %}
+<div id="findings" class="findings" hx-swap-oob="true">
+  {% for c in claims %}{% include "_claim.html" %}{% endfor %}
+  {% if said %}
+  <div class="title said-head" id="said">
+    <h1>What they said they built</h1>
+    <p class="sub">{{ said|length }} claims, each checked against the code the same way. Not scored, not in coverage.</p>
+  </div>
+  {% for c in said %}{% include "_said.html" %}{% endfor %}
+  {% endif %}
+</div>
+<nav class="reqindex" id="reqindex" aria-label="Requirements" hx-swap-oob="true">
+  {% for c in claims %}<a href="#claim-{{ c.req.id }}" class="{% if c.decision %}decided{% endif %}"><span class="n">{{ c.pos }}</span>{% if not c.req.verifiable %}{{ mark('none') }}{% elif c.finding %}<span class="state state-{{ c.finding.state }}">{{ mark(c.finding.state) }}</span>{% else %}{{ mark('none') }}{% endif %}{{ c.req.title }}</a>{% endfor %}
+</nav>
+{% endif %}

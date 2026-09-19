@@ -109,3 +109,18 @@ def test_batch_page_counts_the_cohort(client):
     assert "Across the batch" in page and "1 of 2 partial" in page  # run1 PARTIAL, run2 VERIFIED
     assert "0 of 1" in page and "Five user roles are enforced." in page
     assert "#said-c9" in page
+
+
+def test_run_page_fills_while_running(client):
+    c, store = client
+    from repoman.core.types import RunStatus
+
+    store.put_json("runs/run1/status.json", RunStatus(stage="verify", detail="Automated tests", done=1, total=2))
+    page = c.get("/runs/run1").text
+    assert page.count('id="findings"') == 1 and page.count('id="reqindex"') == 1 and 'id="live"' in page
+    live = c.get("/runs/run1/live")
+    assert live.status_code == 200 and 'hx-swap-oob="true"' in live.text and "Two test files" in live.text
+    store.put_json("runs/run1/status.json", RunStatus(stage="done", done=2, total=2))
+    done = c.get("/runs/run1/live")
+    assert done.headers.get("HX-Refresh") == "true"
+    assert 'id="live"' not in c.get("/runs/run1").text

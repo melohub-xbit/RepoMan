@@ -21,7 +21,7 @@ from repoman.verify.tools import ToolBox
 from repoman.verify.verify import VerifyOutcome, verify_all
 
 MAX_CLAIMS = 8  # cost cap: each claim is one more agent run
-EXTRACT_CAP = 6  # tool calls: README plus a few report pages
+EXTRACT_CAP = 14  # tool calls: the README plus a report's worth of pages
 
 CLAIMS_SYSTEM = """\
 You list the concrete, checkable claims a software submission makes about itself.
@@ -75,17 +75,22 @@ def _ask(box: ToolBox, turn: str) -> tuple[ClaimsDraft, object]:
     agent = Agent(model=make_model(), system_prompt=CLAIMS_SYSTEM.format(max=MAX_CLAIMS), tools=box.build(),
                   callback_handler=None)
     result = agent(turn)
-    return agent.structured_output(ClaimsDraft, "Now list the claims in the required structure."), result
+    # The output schema is forced as the only tool for this turn, so a model that would rather read one
+    # more file cannot; that request is a 400 on OpenAI-compatible endpoints.
+    final = agent("Now list the claims in the required structure.", structured_output_model=ClaimsDraft)
+    return final.structured_output or ClaimsDraft(), result
 
 
 def verify_claims(claims: list[Claim], checkout: Checkout, *, submission_id: str, probe_summary: str = "",
-                  quarantined: frozenset[str] = frozenset(), flags=(), on_progress=None) -> VerifyOutcome:
+                  quarantined: frozenset[str] = frozenset(), flags=(), on_progress=None, on_finding=None) -> VerifyOutcome:
     """Each claim runs through verify_all as a pseudo-requirement; the findings come back tagged subject="claim"."""
     pseudo = [Requirement(id=c.id, rubricId="claims", title=c.statement[:80], statement=c.statement, weight=0,
                           scale=Scale(kind="check"), verifiable=True, proposedBy="repoman") for c in claims]
+    tag = lambda f: Finding(**{**f.model_dump(), "subject": "claim"})  # noqa: E731
     outcome = verify_all(pseudo, checkout, submission_id=submission_id, probe_summary=probe_summary,
-                         quarantined=quarantined, flags=flags, on_progress=on_progress)
-    outcome.findings = [Finding(**{**f.model_dump(), "subject": "claim"}) for f in outcome.findings]
+                         quarantined=quarantined, flags=flags, on_progress=on_progress,
+                         on_finding=(lambda f: on_finding(tag(f))) if on_finding else None)
+    outcome.findings = [tag(f) for f in outcome.findings]
     return outcome
 
 

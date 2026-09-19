@@ -428,6 +428,15 @@ def decide(request: Request, run_id: str, requirement_id: str = Form(...), actio
     return resp
 
 
+@app.get("/runs/{run_id}/live", response_class=HTMLResponse)
+def run_live(request: Request, run_id: str):
+    """While a run is in progress the page polls this; finished cards are swapped in out-of-band."""
+    r = load_run(run_id)
+    if r["status"].stage in ("done", "failed"):
+        return HTMLResponse('<div id="live"></div>', headers={"HX-Refresh": "true"})
+    return tpl.TemplateResponse(request, "_live.html", {**r, "oob": True})
+
+
 @app.get("/runs/{run_id}/facts", response_class=HTMLResponse)
 def facts(request: Request, run_id: str):
     r = load_run(run_id)

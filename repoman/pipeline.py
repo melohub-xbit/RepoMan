@@ -80,11 +80,18 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     checkable: list[Requirement] = [r for r in rubric.requirements if r.verifiable]
     status("verify", checkable[0].title if checkable else "", 0, len(checkable))
 
+    titles = {r.id: r.title for r in checkable}
+    so_far: list = []  # written after every finding so the run page fills while the rest are investigated
+
+    def landed(finding):
+        so_far.append(finding)
+        store.put_json(prefix + "findings.json", so_far)
+
     outcome = verify_all(
         rubric.requirements, checkout, submission_id=sub.id,
         probe_summary=report.summary_for_prompt(), quarantined=frozenset(report.quarantined),
-        precedents=list(precedents), flags=report.flags,
-        on_progress=lambda done, total, _rid: status("verify", _next_title(checkable, done), done, total),
+        precedents=list(precedents), flags=report.flags, on_finding=landed,
+        on_progress=lambda done, total, rid: status("verify", titles.get(rid, ""), done, total),
     )
     store.put_json(prefix + "findings.json", outcome.findings)
 
@@ -101,7 +108,7 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
         if claims:
             claimed = verify_claims(
                 claims, checkout, submission_id=sub.id, probe_summary=report.summary_for_prompt(),
-                quarantined=frozenset(report.quarantined), flags=report.flags,
+                quarantined=frozenset(report.quarantined), flags=report.flags, on_finding=landed,
                 on_progress=lambda done, total, _cid: status("claims", f"claim {done} of {total}", done, total),
             )
             claim_findings = claimed.findings
@@ -131,10 +138,6 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     status("done", f"{verified} of {len(checkable)} requirements have verified evidence",
            len(checkable), len(checkable))
     return run_id
-
-
-def _next_title(checkable: list[Requirement], done: int) -> str:
-    return checkable[done].title if done < len(checkable) else "finishing"
 
 
 def batch_similarity(store: Store, run_ids: list[str]) -> list[dict]:

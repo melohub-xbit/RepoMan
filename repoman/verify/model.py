@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"  # free tier, tool calling; a test bench, not a track
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"  # free tier, tool calling; a test bench, not a track
 DEFAULT_REGION = "us-east-1"
 
 

@@ -15,7 +15,7 @@ which one it got:
 |---|---|---|---|
 | Local (no AWS account) | `strands.models.ollama.OllamaModel` | `qwen3:8b` | `REPOMAN_OLLAMA_HOST=http://localhost:11434` |
 | AWS | `strands.models.BedrockModel` | Claude Sonnet on Bedrock | `REPOMAN_MODEL_ID`, `AWS_REGION` |
-| Test bench (not a track) | `strands.models.openai.OpenAIModel` against Groq | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
+| Test bench (not a track) | `strands.models.openai.OpenAIModel` against Groq | `openai/gpt-oss-120b` | `GROQ_API_KEY` |
 
 **Bedrock model ID.** Take it from the Bedrock console → Model catalog → the
 Claude Sonnet entry → *cross-region inference profile ID*. It is a string of the

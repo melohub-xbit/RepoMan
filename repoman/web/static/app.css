@@ -535,3 +535,10 @@ html.js .reveal:not(.in) { opacity: 0; transform: translateY(10px); }
 .claims-cohort .failed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .claims-cohort .failed li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
 .claims-cohort .failed .why { color: var(--graphite); }
+
+/* a run in progress: the page fills card by card */
+.live { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 10px 16px; margin: 0 0 14px; border: 1px dashed var(--rule-strong); border-radius: var(--r); font-family: var(--mono); font-size: 12.5px; }
+.live .step { text-transform: uppercase; letter-spacing: .08em; color: var(--pencil); }
+.live .step::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--pencil); margin-right: 8px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.live .n { color: var(--ink); } .live .why { color: var(--graphite); }
