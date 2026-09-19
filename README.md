@@ -6,8 +6,8 @@ write** — professors, TAs, hackathon judges, hiring reviewers.
 > RepoMan does not judge people's work. It does the tedious investigation
 > required before a human can judge it well.
 
-Give it a submission — GitHub repo, README, project report, demo video, slide
-deck, deployed URL — and a rubric. It returns **Requirement → Evidence →
+Give it a submission — GitHub repo or zip, README, project report or deck as
+PDF, deployed URL — and a rubric. It returns **Requirement → Evidence →
 Finding** records, each citing a permalink a human can open. The human scores.
 RepoMan never produces a number.
 
@@ -34,7 +34,8 @@ institution can defend.
 
 ## Status
 
-Pre-implementation. The specification is complete; no code yet. See
+Pre-implementation. The specification is complete and scoped to a two-day
+hackathon build on the AWS track list; no code yet. See
 [`docs/06-build-plan.md`](docs/06-build-plan.md).
 
 ## Documentation
@@ -55,13 +56,15 @@ Details in [`AGENTS.md`](AGENTS.md).
 
 ## Shape
 
-A pnpm + uv monorepo. TypeScript owns everything a human touches; Python owns
-everything that parses a file format. Local-first and cloud differ only in five
-adapter implementations, so "the submissions never left the department laptop"
-and "five hundred submissions on AWS" are the same codebase.
+One Python package. A Strands agent with read-only tools does the
+investigation; a resolver checks every citation against the pinned checkout
+before it is stored. Local-first (Ollama, local disk, no AWS account) and cloud
+(Bedrock, S3, App Runner) differ in two environment variables, so "the
+submissions never left the department laptop" and "the whole cohort on AWS" are
+the same codebase.
 
 ```
-Intake → Acquire → Compile rubric → Probe → Index → Verify → Human decides
+Intake → Acquire → Compile rubric → Probe → Verify → Human decides
 ```
 
 [`docs/02-architecture.md`](docs/02-architecture.md) has the detail.

@@ -9,9 +9,13 @@
 RepoMan is an **evidence-gathering copilot for people who evaluate software they
 did not write** — professors, TAs, hackathon judges, hiring reviewers.
 
-It takes a submission (GitHub repo, README, project report, demo video, slide
-deck, architecture diagram, deployed URL) plus a rubric, and produces
-**Requirement → Evidence → Finding** records that a human then scores.
+It takes a submission (GitHub repo or zip, README, project report or deck as
+PDF, deployed URL) plus a rubric, and produces **Requirement → Evidence →
+Finding** records that a human then scores.
+
+**Build constraints:** two days, one developer, $100 of AWS credits, and the
+hackathon's service list ([`docs/02-architecture.md`](docs/02-architecture.md)).
+The simplest thing that satisfies the invariants wins every argument.
 
 The one-line thesis, which constrains every decision below:
 
@@ -31,9 +35,9 @@ about to make violates one, stop and raise it rather than working around it.
    object). This is enforced by schema, not by prompt. See
    [`docs/03-data-model.md`](docs/03-data-model.md).
 3. **Locators are verified, not trusted.** Every locator a model returns is
-   re-resolved against the content-addressed blob store before it is stored, and
-   the quoted text must match. A citation that does not resolve is dropped and
-   logged, never rendered.
+   re-resolved against the pinned checkout before it is stored, and the quoted
+   text must be found there. A citation that does not resolve is dropped and
+   counted, never rendered.
 4. **`unverified` is a real answer.** "We looked and found nothing" is a correct,
    valuable output. Never let a model guess to fill a gap. One bluffed citation
    destroys evaluator trust for the whole session.
@@ -58,45 +62,45 @@ Read the doc that covers your task before writing code. They are short.
 
 ## Repository layout
 
-A pnpm + uv monorepo. TypeScript owns everything a human touches; Python owns
-everything that parses a file format.
+One Python 3.12 package. Server-rendered UI in the same process.
 
 ```
-packages/
-  core/         ts + py  Domain types, EvidenceLocator, finding state machine. No I/O.
-  intake/       ts       Submission source adapters (GitHub, Drive, CSV, LTI, zip)
-  workspace/    ts       Next.js evaluator UI
-  export/       ts       Evidence packet, CSV, feedback report, cohort report
-  cli/          ts       Local-first surface
-services/
-  acquire/      py       Clone, download, transcribe, extract → blob store
-  probes/       py       Deterministic checks (build, test, deps, git, injection)
-  index/        py       tree-sitter chunking, embeddings, hybrid retrieval
-  verify/       py       Rubric compiler + model orchestration
-docs/                    This documentation set
+repoman/
+  core/        Domain types (pydantic), EvidenceLocator, resolver, finding states. No I/O.
+  intake/      GitHub URL / zip → Submission; git clone at pinned commit; pypdf for reports
+  probes/      Deterministic checks (deps, tests, git, injection, deploy). Pure functions.
+  verify/      Rubric compiler, Strands agent + read-only tools, contradiction pass
+  store/       Store port: LocalStore | S3Store. JSON + bytes, nothing else.
+  web/         FastAPI + Jinja2 evaluator UI: batch list, findings, overrides, export
+  cli.py       repoman run <repo-or-zip> --rubric r.md
+fixtures/      Small real repos incl. injected/ (planted payload — never delete)
+infra/         Dockerfile, App Runner config, deploy script
+docs/          This documentation set
 ```
 
 ## Conventions
 
-**Language boundaries.** TypeScript and Python each own a mirror of the `core`
-types. They must stay in sync — the canonical definition lives in
-`docs/03-data-model.md`, and both mirrors are generated from a single JSON Schema
-in `packages/core/schema/`. Never hand-edit one mirror without the other.
+**Types.** `docs/03-data-model.md` is canonical; `repoman/core/types.py` is
+its pydantic implementation. Change the doc and the models in the same commit.
 
-**Ports, not conditionals.** Local-first and cloud differ only in adapter
-implementations behind five interfaces (`BlobStore`, `MetaStore`, `JobQueue`,
-`Sandbox`, `ModelClient`). Never write `if (isCloud)` in business logic.
+**Ports, not conditionals.** Local-first and cloud differ in exactly two places:
+`store/` (`LocalStore` | `S3Store`) and `verify/model.py` (`OllamaModel` |
+`BedrockModel`), both chosen from environment variables at startup. Never write
+`if is_cloud` in business logic.
 
 **Probes are pure.** Every deterministic probe is a function from artifacts to
 evidence with no hidden state, so it can be unit-tested against a fixture repo.
 If a probe needs the network, it takes a client as a parameter.
 
-**Content addressing.** Everything acquired is stored by SHA. Locators reference
-SHAs, not mutable paths or branch names, so an evidence packet stays valid after
-the student force-pushes.
+**Pinned commits.** Every `file_range` carries the checkout's `commitSha`, so a
+permalink stays valid after the student force-pushes.
 
-**Model calls live in `services/verify` only.** No other module calls Claude. If
-you find yourself wanting a model call elsewhere, the boundary is wrong.
+**Model calls live in `repoman/verify` only.** No other module imports Strands.
+If you find yourself wanting a model call elsewhere, the boundary is wrong.
+
+**Agent tools are read-only.** `tree`, `grep`, `read_file`, `read_report_page`,
+`list_deps`, `probe_results`. Adding a tool that takes a URL, writes, or spawns a
+process violates boundary 2 in `docs/05-security-model.md`.
 
 **Naming.** `Submission` (the thing being evaluated), `Artifact` (one file or
 source within it), `Requirement` (one compiled rubric line), `Evidence` (a
@@ -107,16 +111,19 @@ schema, and the exports.
 ## What not to do
 
 - Do not add a scoring, ranking, or "suggested grade" feature.
-- Do not let a model report a PDF page number. Use the API's `citations` feature,
-  which returns `page_location` / `char_location`. See `docs/04-model-orchestration.md`.
-- Do not run submitted code outside the sandbox, ever, including "just to check".
-- Do not put submission content into a system prompt.
-- Do not silently truncate a repository to fit a context window. Budget
-  retrieval explicitly and record what was excluded.
-- Do not add a dependency to `packages/core`. It stays dependency-free.
+- Do not store a `doc_span` whose quote the resolver could not find on that page.
+- Do not run submitted code, ever, including "just to check". v1 executes
+  nothing; see `docs/05-security-model.md`.
+- Do not put submission content into a system prompt or a user turn. It reaches
+  the model only as `<untrusted>` tool results.
+- Do not silently truncate. The tool-call cap is recorded as `searchExhausted`.
+- Do not add a dependency to `repoman/core` beyond pydantic.
+- Do not add AWS services beyond S3, Bedrock and App Runner without a reason
+  written in `docs/07-open-questions.md`. Breadth of services is not the demo.
 
 ## Current status
 
-Pre-implementation. The documentation set is complete; no code has been written
-yet. Start from [`docs/06-build-plan.md`](docs/06-build-plan.md) — the Day 1
-spine is the vertical slice that proves the thesis end to end.
+Pre-implementation. The documentation set is complete and scoped to a two-day
+build; no code has been written yet. Start from
+[`docs/06-build-plan.md`](docs/06-build-plan.md) — the Day 1 spine is the
+vertical slice that proves the thesis end to end.

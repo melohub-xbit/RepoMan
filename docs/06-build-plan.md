@@ -1,113 +1,134 @@
 # 06 — Build plan
 
-The vertical slice comes first: **one submission, one rubric, one finding
-rendered with a working permalink.** Everything after that is breadth on a spine
-that already runs end to end.
+Two days, one developer, Claude Code doing the typing. The vertical slice comes
+first: **one submission, one rubric, one finding rendered with a working
+permalink.** Everything after that is breadth on a spine that already runs.
 
-Resist building any layer wide before the spine is closed. A beautiful workspace
-with no locator resolution is a demo; a terminal printout with a permalink that
-opens is a product.
-
----
-
-## Day 1 — Spine
-
-Goal: `repoman run ./fixtures/springboot --rubric fixtures/rubric.md` prints a
-finding whose GitHub permalink opens to the right lines.
-
-- [ ] `packages/core` types and `EvidenceLocator`, generated from JSON Schema
-      into both language mirrors
-- [ ] The locator **resolver** — re-reads from the blob store at SHA, compares
-      the quote, drops on mismatch. Build this before anything produces locators.
-- [ ] Content-addressed blob store behind the `BlobStore` port, local FS impl
-- [ ] Zip and public-GitHub intake; clone, README, file tree
-- [ ] Rubric compiler producing an editable checklist, with `verifiable: false`
-      working on a "creativity" criterion
-- [ ] One verify pass with schema-enforced citations (`minItems: 1`)
-- [ ] Findings into SQLite behind the `MetaStore` port
-- [ ] CLI that prints findings to the terminal — **no UI yet**
-
-**Exit criterion:** a deliberately false claim in the fixture README produces a
-`CONTRADICTED` finding, and the cited permalink opens to the right lines.
+Resist building any layer wide before the spine is closed. A workspace with no
+locator resolution is a demo; a terminal printout with a permalink that opens is
+a product.
 
 ---
 
-## Day 2 — Credibility
+## Before Day 1 (thirty minutes, do it tonight)
 
-Goal: the findings stop looking like a language model and start looking like an
+- [ ] Bedrock → Model access → enable Claude Sonnet in your region. This can take
+      hours to approve; nothing else is blocked on it but the demo is.
+- [ ] Billing → Credits → confirm Amazon Bedrock is an applicable product.
+- [ ] `ollama pull qwen3:8b` so Track 1 is testable offline.
+- [ ] Create the S3 bucket and an ECR repo. Nothing else in AWS yet.
+
+---
+
+## Day 1 — Spine (local only, no UI)
+
+Goal: `repoman run ./fixtures/springboot --rubric fixtures/rubric.md` prints
+findings, and the `file_range` permalink for the `CONTRADICTED` one opens to the
+right lines on GitHub.
+
+Build order — each step is testable before the next starts:
+
+1. [ ] `core/`: pydantic types from [`03-data-model.md`](03-data-model.md),
+       `EvidenceLocator`, finding states, `RunManifest`.
+2. [ ] `core/resolver.py` — re-reads the checkout, matches the quote, drops on
+       mismatch. **Before anything produces locators.** Unit test with a
+       hand-written good and bad locator.
+3. [ ] `store/`: `Store` protocol, `LocalStore`. `S3Store` is Day 2.
+4. [ ] `intake/`: GitHub URL → shallow clone at HEAD, record commit SHA;
+       zip → extract; README located. `pypdf` for `--report`.
+5. [ ] `verify/model.py` + one Strands agent with `tree`/`grep`/`read_file`.
+       Smoke-test against Ollama first (free, fast), then Bedrock.
+6. [ ] Rubric compiler with `verifiable: false` working on a "creativity" line.
+7. [ ] Verify pass with `structured_output(FindingDraft)`, `min_length=1`, then
+       resolver, then `findings.json`.
+8. [ ] `cli.py` prints findings as a table with permalinks.
+
+**Exit criterion:** the deliberately false claim in `fixtures/springboot/README.md`
+produces `CONTRADICTED`, and the cited permalink opens to the right lines.
+
+---
+
+## Day 2 morning — Credibility
+
+Goal: findings stop looking like a language model and start looking like an
 investigation.
 
-- [ ] Deterministic probes: dependency reachability, test discovery, git
-      timeline, deploy liveness
-- [ ] Injection scanner and the `FLAGGED` state; `fixtures/injected/` passing
-- [ ] Sandbox port with the Docker implementation, no network
-- [ ] PDF ingestion using API citations for `doc_span`
-- [ ] Video transcription with timestamps → `media_span`
-- [ ] Workspace: queue, evidence panel, split code/video view, override +
-      precedent
+- [ ] Probes: `deps` (declared vs imported), `tests` (test files, framework,
+      count), `git` (timeline vs event window, per-author share, single-dump
+      detection), `injection` (imperative-to-evaluator regexes, zero-width and
+      hidden text), `deploy` (GET, status, title, timestamp). Each is one pure
+      function with a fixture test.
+- [ ] `FLAGGED` on `fixtures/injected/`; quarantined artifact excluded from tools.
+- [ ] Contradiction pass across a submission's findings.
+- [ ] Viva questions: `Finding.questions` populated for non-`VERIFIED` findings.
 
-**Exit criterion:** a finding that cites code, the report, and the demo video at
-once, with all three links landing in the right place.
+**Exit criterion:** a finding cites code and the report page at once, both links
+land, and the injected fixture is flagged with the payload's locator.
 
----
+## Day 2 afternoon — Ship it
 
-## Day 3 — Scale
+- [ ] `web/`: batch list → submission page with evidence cards (permalink,
+      quote, provenance badge, state) → override form (accept / override + note
+      + score) → precedent applied to later runs in the batch → CSV and
+      Markdown export. Server-rendered; no JS framework.
+- [ ] `S3Store`. Dockerfile. `deploy.sh`: build, push to ECR, create/update the
+      App Runner service with env vars and the instance role.
+- [ ] Evidence coverage on the batch list. Time-to-decision timer on the
+      submission page.
+- [ ] Run RepoMan on RepoMan. Fix whatever that exposes.
+- [ ] Rehearse the demo twice, once against Bedrock, once against Ollama.
 
-Goal: the cloud track is real and the cost number is measured.
-
-- [ ] Cloud adapters: S3, Aurora + pgvector, SQS, Fargate
-- [ ] Batch API fan-out across a cohort
-- [ ] Cross-submission similarity and the cohort report
-- [ ] Evidence packet and student feedback export
-- [ ] Instrument `usage` and publish a real cost per submission
-
-**Exit criterion:** a 50-submission batch completes, and we can state the actual
-dollar cost rather than the estimate in [`04`](04-model-orchestration.md).
+**Exit criterion:** a public App Runner URL; a five-submission batch completes;
+`manifest.usage` gives a real cost per submission.
 
 ---
 
 ## Deliberately cut from v1
 
-Recording these so they do not get re-argued mid-build.
+Recorded so they are not re-argued mid-build.
 
 | Cut | Why |
 |---|---|
-| **LTI 1.3 grade passback** | Highest adoption value, but certification work is days. Ship CSV export; LTI is the first post-hackathon item. |
-| **Browser extension** | Needs a stable API surface first. |
-| **Calibration and drift detection** | Needs real multi-evaluator data to be anything but a mock. |
-| **Cross-institution similarity** | Strong feature, hard data-sharing conversation. Vision, not v1. |
+| **Sandboxed build and test** | The strongest probe, but Docker-in-App-Runner is a day by itself. v1 executes no submitted code at all, which is also the simplest possible security posture. `deploy` liveness gives a cheap "does it run" signal. |
+| **Video transcription** | Expensive, low signal per token. Deck-as-PDF covers most of the demo-evidence value. |
+| **Retrieval index** | Replaced by the agent's search tools. See [`02-architecture.md`](02-architecture.md). |
+| **DynamoDB / Lambda / Step Functions / EventBridge / Cognito / Amplify** | Each is a good next step and none is needed to show the thesis. |
+| **Model tiering, Batch API** | Batch API is not on Bedrock at all. One model, measured first. |
+| **LTI, browser extension, calibration, cross-institution similarity** | Post-hackathon, as before. |
+| **Cross-submission similarity** | Day 3 item that no longer has a Day 3. One afternoon post-hackathon: hash file trees, compare across the batch. |
 | **Anything producing a number** | Permanent. Holding this line *is* the demo. |
 
 ---
 
-## The demo
+## The demo (four minutes)
 
-Run RepoMan on RepoMan's own submission, live.
+Open with the personal line — you have been on both sides of this: graded by
+someone who never opened the repo, and judging while skimming. Then:
 
-It is immediately legible to any audience, it needs no setup explanation, and it
-forces honesty about our own unverified claims — which is precisely the argument
-the product makes. Rehearse the failure case too: show a requirement we cannot
-verify and let it say so.
+1. Submission URL and rubric pasted in; compiled requirements shown, one marked
+   *not verifiable — stays human*. Run. Thirty seconds.
+2. One `CONTRADICTED` finding: click the permalink, GitHub opens at the lines;
+   click the report page, the quote is highlighted. "The report says five roles.
+   The code has two."
+3. The planted injection payload, caught and flagged, with its own locator.
+   "Every submission is hostile input. It never reached the model as an
+   instruction."
+4. One `UNVERIFIED` finding, explained as a feature: "We looked here, here and
+   here and found nothing. That is an answer, not a gap."
+5. Override it; the precedent applies to the rest of the batch. Show the batch
+   list with evidence coverage. Point at the Track 1 terminal running the same
+   thing on Ollama with no AWS account.
 
-Sequence:
-
-1. Submission and rubric in, evidence workspace out — thirty seconds.
-2. One `CONTRADICTED` finding, opened to the cited code and the cited report
-   page side by side.
-3. The planted injection payload caught and flagged.
-4. One `UNVERIFIED` finding, explained as a feature rather than apologised for.
-5. Evaluator overrides a finding; precedent applies to the rest of the batch.
+Close on the sentence: RepoMan does not judge people's work. It does the
+tedious investigation required before a human can judge it well.
 
 ---
 
 ## Metrics to instrument from day one
 
 - **Time to decision** per submission — the headline metric, not accuracy.
-- **Evidence coverage** distribution across a cohort.
-- **Locator mismatch rate** — a rising rate means a prompt or retrieval
-  regression.
-- **Cache hit rate** (`usage.cache_read_input_tokens`) — zero means the prefix
-  broke.
-- **Cost per completed evaluation**, not per request.
+- **Evidence coverage** distribution across a batch.
+- **Locator mismatch rate** — a rising rate means a prompt regression.
+- **Cost per completed evaluation** from `manifest.usage`.
 - **Override rate** per requirement — a criterion overridden every time is a
   rubric compiler bug.

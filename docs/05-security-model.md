@@ -45,47 +45,59 @@ payload is.
 
 ### 1. Submission content is data, never instruction
 
-All submitted content enters as **user-turn content**, wrapped and explicitly
-labelled untrusted. It never appears in a system prompt.
+All submitted content reaches the model **only as tool results**, wrapped in
+`<untrusted source="...">` tags. It never appears in the system prompt, and it
+never appears in the user turn — the user turn carries the evaluator's
+requirement and the probe summary, nothing from the submission.
 
-Operator instructions go through the system channel. On Opus 5 that includes
-**mid-conversation system messages** — appending `{"role": "system", ...}` to the
-`messages` array — which is the injection-safe way to add an instruction mid-run
-without invalidating the cached prefix. Use that rather than editing the
-top-level `system` field or inlining an instruction into a user turn.
+Operator instructions live in the fixed system prompt. There is no path by which
+submission text can become an instruction except the model choosing to obey text
+inside an `<untrusted>` block, and the system prompt tells it not to and to report
+any such text as injection evidence.
 
 ### 2. Model output never steers a privileged tool
 
 The model reads evidence and writes findings. It does **not** choose what to
 clone, what to execute, what to fetch, or what to delete.
 
-Every privileged action — clone, build, run, HTTP fetch — is decided by
-deterministic code from the `Submission` record, before any model call. There is
-no tool in the verify loop with side effects outside the findings table.
+Every privileged action — clone, HTTP fetch of the deploy URL — is decided by
+deterministic code from the `Submission` record, before any model call. The
+agent's tools (`tree`, `grep`, `read_file`, `read_report_page`, `list_deps`,
+`probe_results`) are read-only over a checkout that already exists. There is no
+tool that takes a URL, writes a file, or spawns a process.
 
-This is why `services/probes` may not import `services/verify`. The dependency
+This is why `repoman/probes` may not import `repoman/verify`. The dependency
 direction is a security control.
 
-### 3. Submitted code executes in a sandbox, always
+### 3. v1 executes no submitted code. When it does, only in a sandbox.
 
-Non-negotiable, including "just to check quickly."
+v1 never runs a build, a test suite, or an install from a submission. Probes are
+static: manifests are parsed, test files are counted, `git log` is read. This is
+a deliberate cut ([`06-build-plan.md`](06-build-plan.md)) and it is also the
+simplest possible posture: there is nothing to escape from.
+
+When sandboxed build/test is added, the rules are non-negotiable, including
+"just to check quickly":
 
 - No network egress except an explicit package-registry allowlist.
 - Hard wall-clock cap; killed, not extended.
 - No credentials, no cloud role, no host filesystem mount beyond the checkout.
-- Read-only where possible; the container is destroyed after the run.
+- The container is destroyed after the run.
 
 A submitted `postinstall` script is a supply-chain attack aimed directly at the
-grader's machine. Treat every `npm install` of submitted code as hostile.
+grader's machine. Treat every `npm install` of submitted code as hostile. The
+same applies to the developer: **do not `npm install` or `pip install` inside a
+fixture or a submission checkout on your own machine.**
 
 ### 4. PII stays out of prompts
 
-- Author emails are hashed at acquisition time in `services/acquire`, before
+- Author emails are hashed in `intake` when the git log is read, before
   anything else sees them.
-- **Blind mode strips identity before retrieval, not at render time.** Stripping
-  at render leaves names in the index, the embeddings, and the model context —
-  which defeats the purpose, since the bias it exists to prevent happens inside
-  the model.
+- **Blind mode strips identity before the run, not at render time.** Stripping
+  at render leaves names in the model context — which defeats the purpose, since
+  the bias it exists to prevent happens inside the model. In v1 blind mode is
+  `identity = null` on the `Submission` plus the `git` probe reporting author
+  hashes only.
 - `SubmissionIdentity` is a separate nullable field on `Submission` precisely so
   the strip is a single, auditable operation.
 
@@ -98,9 +110,9 @@ credentials. They are the actual target of anything malicious in a submission.
 
 This is the main reason the **local-first CLI** exists. For a university with
 student-records obligations, "the submissions never left the department laptop"
-is the argument that ends the procurement conversation. The local track uses the
-same sandbox discipline — Docker with no network — so local-first is not a
-weaker security posture, only a different deployment.
+is the argument that ends the procurement conversation. On Track 1 the model is
+local too (Ollama), so the claim is literally true: no byte of a submission
+leaves the machine.
 
 ---
 
@@ -111,8 +123,8 @@ can cost a student marks and cost the institution an appeal.
 
 Mitigations, all covered elsewhere:
 
-- Locator resolution before storage ([`04`](04-model-orchestration.md), Rule 3).
-- `minItems: 1` on evidence ([`03`](03-data-model.md)).
+- Locator resolution before storage ([`04`](04-model-orchestration.md), Rule 2).
+- `min_length=1` on evidence ([`03`](03-data-model.md)).
 - `UNVERIFIED` as a first-class state, so the system never has to guess.
 - `RunManifest` replayability, so a disputed finding can be reproduced.
 
@@ -122,14 +134,13 @@ Mitigations, all covered elsewhere:
 
 | Data | Retention | Notes |
 |---|---|---|
-| Submitted artifacts | Per-batch, evaluator-configurable; default delete at batch close | The sensitive asset |
-| Blobs | Content-addressed, deduplicated across a batch | Deleted with the batch |
+| Submitted artifacts | Per-batch; deleted with the batch | The sensitive asset |
 | Findings + decisions | Retained | This is the audit trail |
 | Author emails | Never stored raw | Hashed at acquisition |
 | Model call payloads | Not logged by default | Contains submission content |
 
-Log request IDs and `usage`, not prompts. If prompt logging is needed for
-debugging, it is opt-in per batch and disclosed in the UI.
+Log `usage`, not prompts. Strands' debug logging prints tool results; keep it
+off outside local development.
 
 ---
 

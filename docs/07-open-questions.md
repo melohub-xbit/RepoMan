@@ -7,6 +7,28 @@ Each entry names what depends on it, so the cost of deferring is visible.
 
 ---
 
+## Settled on 2026-09-19 for the two-day hackathon build
+
+Recorded here per the docs convention; the affected docs are updated.
+
+| Decision | Was | Now | Why |
+|---|---|---|---|
+| Language | TS + Python monorepo, generated type mirrors | Python only, one package | Two days. Codegen is time without findings. ([`02`](02-architecture.md)) |
+| Retrieval | tree-sitter chunks + embeddings + hybrid search | Strands agent with read-only search tools | Removes an index, a vector store and a tuning loop; maps to Track 1's SDK. ([`02`](02-architecture.md), [`04`](04-model-orchestration.md)) |
+| Model runtime | Anthropic SDK direct / Bedrock Mantle | Strands Agents SDK, `OllamaModel` \| `BedrockModel` | One agent, one line of difference between tracks. ([`04`](04-model-orchestration.md)) |
+| Model tiering | Haiku / Sonnet / Opus + Batch API | One model (Sonnet on Bedrock) | Batch API does not exist on Bedrock; tier after cost is measured. |
+| Storage | Aurora + pgvector, S3 blobs, SQS, Fargate | JSON in one `Store` (local dir \| S3); one App Runner container | Nothing to provision; scales to a hackathon batch. |
+| PDF citations | Files API + `citations` | `pypdf` pages + resolver-verified quote | Citations API is not reachable through Strands/Converse; the invariant holds via the resolver. |
+| Sandbox | Docker / Fargate build+test | v1 executes nothing | A day of work; static probes plus deploy liveness carry the "does it run" signal. |
+| Video | Whisper → `media_span` | Cut, locator variant removed | Cost/signal. Deck-as-PDF stays. |
+| Auth | Cognito | Shared token | Post-hackathon. |
+| Q1 below | open | **Immutable** — a re-run is a new `runId` | The packet at decision time is what an appeal examines. |
+| Q3 below | open | **Tool-call cap (12), recorded as `searchExhausted`** | The finding says how far the search went; nothing is truncated silently. |
+| Q5 below | open | **Decompose, mark `proposedBy: "repoman"`, evaluator approves before run** | Field added to `Requirement`. |
+| Q6 below | open | **Show provenance as a badge; equal placement** | Evaluators should know what is not guessing without hiding the model's findings. |
+
+---
+
 ## 1. Who owns a finding that turns out to be wrong?
 
 **The question.** If an evaluator scores a student down based on a RepoMan
@@ -18,10 +40,8 @@ like, and what does RepoMan owe it?
 or as a **living document** (findings can be amended in place). That is a schema
 decision, and it hardens fast.
 
-**Lean.** Immutable. `RunManifest` already implies it, and "the packet as it was
-at the time of the decision" is the only thing an appeal can actually examine.
-
-**Settle before:** Day 1 exit.
+**Settled 2026-09-19:** Immutable. A re-run writes a new `runId`; `decisions.json`
+is per submission and survives re-runs. See [`03`](03-data-model.md) storage notes.
 
 ---
 
@@ -56,10 +76,10 @@ schema.
 **Options.** Fixed token budget per requirement; adaptive budget by rubric
 weight; two-stage retrieval that widens only when the first pass finds nothing.
 
-**Lean.** Two-stage, with the exclusion recorded either way.
-
-**Settle before:** the first submission that is genuinely large. Put a size
-fixture in `fixtures/` early so this is not discovered during the demo.
+**Settled 2026-09-19:** the verify agent has a tool-call cap of 12 per
+requirement; hitting it sets `Finding.searchExhausted`. No token budget, no
+truncation — the search log *is* the record of what was covered. Revisit if a
+fixture repo over ~5k files produces mostly `UNVERIFIED`.
 
 ---
 
@@ -86,11 +106,9 @@ RepoMan's opinion rather than the evaluator's rubric.
 **Why it matters.** It quietly moves judgment from the human to the system, which
 is exactly what the thesis forbids.
 
-**Lean.** Decompose, but present the decomposition for explicit approval before
-the run, and mark it as RepoMan-proposed rather than evaluator-authored in the
-`Requirement` record. That probably needs a field.
-
-**Settle before:** the rubric compiler is considered done.
+**Settled 2026-09-19:** decompose, mark each piece `proposedBy: "repoman"`, and
+the evaluator edits/approves the compiled list before the run. Field added to
+`Requirement` in [`03`](03-data-model.md).
 
 ---
 
@@ -99,8 +117,6 @@ the run, and mark it as RepoMan-proposed rather than evaluator-authored in the
 **The question.** `Evidence.provenance` distinguishes them. Should the workspace
 visually rank a probe result above a model result?
 
-**Lean.** Yes, show provenance — evaluators should know which parts of the system
-are not guessing. But do not let it collapse into "ignore the model findings,"
-which would waste most of the value.
-
-**Settle before:** the evidence panel is built on Day 2.
+**Settled 2026-09-19:** a `probe` / `model` badge on every evidence card, same
+placement and size for both. Evaluators should know what is not guessing without
+being nudged to ignore the model's findings.

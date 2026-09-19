@@ -112,13 +112,13 @@ who learns that `UNVERIFIED` genuinely means "we could not find it" will trust
 
 ## Why it fits a hackathon build
 
-The system combines LLM reasoning, static code analysis, document understanding,
-video transcription, semantic retrieval, and evidence linking. It has a genuine
-local-first version, where sensitive student or company submissions never leave
-the evaluator's machine, and a cloud version where large volumes are processed
-collaboratively on AWS. The two deployment tracks are architecturally
-meaningful — see [`02-architecture.md`](02-architecture.md) — rather than the same
-application deployed twice.
+The system combines an investigating agent (Strands Agents SDK), deterministic
+code and git analysis, document reading, and verified evidence linking. It has a
+genuine local-first version — Ollama, local disk, no AWS account — where
+sensitive student or company submissions never leave the evaluator's machine,
+and a cloud version on Bedrock, S3 and App Runner where a cohort is processed
+from one URL. The two tracks are the same code with two environment variables
+changed — see [`02-architecture.md`](02-architecture.md).
 
 ## The defensibility argument
 

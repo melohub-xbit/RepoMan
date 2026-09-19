@@ -1,142 +1,154 @@
 # 02 — Architecture
 
+Built for a two-day hackathon with one developer and $100 of AWS credits. Every
+choice below is the simplest thing that satisfies the invariants in
+[`../AGENTS.md`](../AGENTS.md) and lands on the hackathon's own service list.
+Where the earlier plan was heavier (two languages, generated type mirrors,
+Aurora, Fargate, SQS, a retrieval index), that is recorded in
+[`07-open-questions.md`](07-open-questions.md) as settled, not re-argued here.
+
 ## Pipeline
 
-Seven stages, strictly ordered. Each stage's output is the next stage's only
+Six stages, strictly ordered. Each stage's output is the next stage's only
 input, which is what makes a run replayable from its manifest.
 
 ```
-01 Intake          Adapter normalizes any source into Submission + Artifact[]
-02 Acquire         Clone, download, transcribe, extract — content-addressed by SHA
-03 Compile rubric  Prose → Requirement graph; unverifiable criteria marked
-04 Probe           Deterministic checks: build, test, deploy, deps, git, injection
-05 Index           Chunk + embed code, docs, transcript — chunks carry locators
-06 Verify          Per-requirement retrieval → Finding[]; no locator, no finding
-07 Human decides   Workspace, overrides, precedent, export
+01 Intake          GitHub URL or zip (+ optional report PDF, deploy URL) → Submission + Artifact[]
+02 Acquire         git clone at a pinned commit; PDF → per-page text; stored under the run
+03 Compile rubric  Prose → Requirement[]; unverifiable criteria marked, evaluator edits before run
+04 Probe           Deterministic checks: deps, tests, git timeline, injection scan, deploy liveness
+05 Verify          One agent run per requirement: read-only tools over the checkout → Finding
+06 Human decides   Workspace, overrides, precedent, export
 ```
 
-Stages 04 and 05 run in parallel per submission. Stage 06 fans out per
-requirement. Only stage 07 is not automated, and that is the design, not a gap.
+**There is no index stage.** The earlier plan chunked and embedded the
+repository, then retrieved per requirement. Instead the verify agent *searches*
+the checkout the way a TA would — `tree`, `grep`, `read_file`, `read_report_page`
+— and cites what it finds. This removes tree-sitter, embeddings, a vector store
+and a retrieval-tuning loop, and it maps directly onto the Strands Agents SDK on
+both tracks. The cost is more model tokens per requirement; the tool-call cap in
+[`04-model-orchestration.md`](04-model-orchestration.md) bounds it.
 
-**Replayability.** Every run writes a `RunManifest` recording the input SHAs, the
-compiled rubric version, the probe versions, the model IDs, and the prompt
-template hashes. Given a manifest, a run can be reproduced or diffed. This is
-what makes an appeal answerable six months later.
+**Replayability.** Every run writes a `RunManifest` recording the commit SHA, the
+compiled rubric version, the probe versions, the model ID and the prompt
+template hashes. Given a manifest, a run can be reproduced or diffed.
 
-## Modules
+## One package, one language
 
-A pnpm + uv monorepo. The language split follows a real boundary: **TypeScript
-owns everything a human touches, Python owns everything that parses a file
-format.** Python has the better libraries for tree-sitter, PDF layout,
-transcription, and similarity; TypeScript has the better story for the UI,
-adapters, and a distributable CLI.
+Python 3.12, one installable package. The earlier TypeScript/Python split with
+generated type mirrors was correct for a team and wrong for two days: every hour
+spent on schema codegen is an hour without a finding. Python owns everything;
+the UI is server-rendered templates in the same process.
 
-| Module | Lang | Responsibility |
-|---|---|---|
-| `packages/core` | ts + py | Domain types, `EvidenceLocator`, finding state machine, run manifest. **Zero I/O, zero dependencies.** |
-| `packages/intake` | ts | Source adapters: GitHub App, Classroom, Drive/Sheets, Devpost/Devfolio CSV, LTI, zip. One interface out. |
-| `services/acquire` | py | Clone, fetch, whisper transcription, PDF/PPTX extraction. Writes the content-addressed blob store. |
-| `services/probes` | py | Deterministic checks. Each is a pure function from artifacts to evidence. |
-| `services/index` | py | tree-sitter chunking, embeddings, hybrid BM25 + vector retrieval. Chunks carry locators. |
-| `services/verify` | py | Rubric compiler and model orchestration. **The only module that calls Claude.** |
-| `packages/workspace` | ts | Next.js evaluator UI: queue, evidence panel, split code/video view, overrides. |
-| `packages/export` | ts | LTI grade passback, CSV, evidence packet, student feedback, cohort report. |
-| `packages/cli` | ts | The local-first surface. Same core, adapters swapped to SQLite and local disk. |
+```
+repoman/
+  core/        types (pydantic), EvidenceLocator, resolver, finding states, RunManifest. No I/O.
+  intake/      GitHub URL / zip → Submission. git clone, PDF → pages.
+  probes/      Pure functions: deps, tests, git, injection, deploy. No model calls.
+  verify/      Rubric compiler, the Strands agent + tools, finding assembly. The only module that talks to a model.
+  store/       The one port: Store(put_json/get_json/list/put_bytes/get_bytes). LocalStore | S3Store.
+  web/         FastAPI + Jinja2: batch list, submission findings, evidence cards, override, export.
+  cli.py       repoman run <repo-or-zip> --rubric r.md [--report r.pdf] [--deploy URL]
+fixtures/      Small real repos: springboot/ (false claim in README), injected/ (planted payload)
+infra/         Dockerfile, apprunner.yaml, deploy.sh
+```
 
 ### Dependency rules
 
-- `core` depends on nothing. Adding a dependency to it is a design error.
-- Nothing imports `verify` except the job runner. Model calls do not leak.
-- `probes` may not import `index` or `verify`. Determinism is the point.
-- The TypeScript and Python mirrors of `core` are generated from one JSON Schema
-  in `packages/core/schema/`. Never hand-edit one mirror alone.
+- `core` imports nothing outside the stdlib and pydantic.
+- Nothing imports `verify` except `cli.py` and `web/`. Model calls do not leak.
+- `probes` may not import `verify`. Determinism is the point, and it is also a
+  security control — see [`05-security-model.md`](05-security-model.md).
+- Every tool the agent can call is read-only over the checkout. There is no tool
+  that clones, fetches, writes, or executes.
 
 ## Local-first and cloud are the same code
 
-Five ports separate the two deployment tracks. This is what makes the dual
-deployment a genuine architectural claim rather than the same application
-deployed twice.
+Two things differ between the tracks, and both are resolved from environment
+variables at startup. Nothing else in the codebase knows which track it is on.
 
-| Port | Local-first | Cloud (AWS) | Why it matters |
-|---|---|---|---|
-| `BlobStore` | Local filesystem | S3 | Submissions are the sensitive asset |
-| `MetaStore` | SQLite + sqlite-vec | Aurora Postgres + pgvector | One machine versus a cohort of 500 |
-| `JobQueue` | In-process worker pool | SQS + ECS Fargate | Fan-out is the only thing that scales |
-| `Sandbox` | Docker, no network | Fargate task, egress denied | Running submitted code is the real risk |
-| `ModelClient` | Claude API direct | Bedrock Mantle client | Same request shape either way |
+| Concern | Track 1 — local, no AWS account | Track 2 — deployed on AWS |
+|---|---|---|
+| `Store` | `LocalStore(./data)` | `S3Store(bucket)` |
+| Model | Strands `OllamaModel` (`qwen3:8b` default) | Strands `BedrockModel` (Claude Sonnet) |
 
-**Never write `if (isCloud)` in business logic.** If a behavior differs between
-tracks, it belongs behind one of these five interfaces. If it does not fit behind
-one of them, that is a signal the port set is wrong — raise it rather than adding
-a conditional.
-
-### ModelClient specifics
-
-On AWS the client is `AnthropicBedrockMantle(aws_region=...)` with an
-`anthropic.`-prefixed model ID (`anthropic.claude-opus-5`). Locally it is the
-plain `Anthropic()` client with the bare ID (`claude-opus-5`). Both expose the
-same `messages.create` / `.stream` surface, so `services/verify` never learns
-which one it is talking to. The port's only job is resolving the model ID and
-constructing the client.
-
-See [`04-model-orchestration.md`](04-model-orchestration.md).
-
-## Data flow
-
-```
-Submission ──┬─→ Artifact (repo)      ──→ blobs ──┬─→ probes ──→ Evidence
-             ├─→ Artifact (report)    ──→ blobs ──┤
-             ├─→ Artifact (video)     ──→ blobs ──┤
-             ├─→ Artifact (deck)      ──→ blobs ──┘
-             └─→ Artifact (deploy)    ──→ capture ──→ Evidence
-
-Rubric ──→ compiler ──→ Requirement[]
-                             │
-                             ↓
-          Requirement × retrieved chunks ──→ verify ──→ Finding
-                                                          │
-                                                          ↓
-                                            Evaluator ──→ Decision ──→ Precedent
+```python
+# repoman/verify/model.py — the whole port
+def make_model():
+    if os.environ.get("REPOMAN_OLLAMA_HOST"):
+        return OllamaModel(host=..., model_id=os.environ.get("REPOMAN_MODEL_ID", "qwen3:8b"))
+    return BedrockModel(model_id=os.environ["REPOMAN_MODEL_ID"], region_name=...)
 ```
 
-`Evidence` is produced by both probes (deterministic) and verify (model-derived),
-and both go through the same locator resolution before storage. The evaluator
-cannot tell which is which from the schema — but the UI shows the provenance,
-because deterministic evidence deserves more trust and evaluators should know.
+**Never write `if is_cloud` in business logic.** If a behaviour differs between
+tracks it belongs in `store/` or `verify/model.py`; if it fits neither, the port
+set is wrong — raise it rather than adding a conditional.
 
-## Concurrency model
+### Why Strands on both tracks
 
-- One job per `(submission, stage)` pair. Stages 04 and 05 are independent.
-- Stage 06 fans out to one job per `(submission, requirement)`. This is where the
-  prompt cache pays off — see `04-model-orchestration.md`.
-- Sandbox jobs get a hard wall-clock cap and are always the tail latency. Run
-  them early and do not block the rest of the pipeline on them.
-- A failed probe produces an `UNVERIFIED` finding with the failure recorded, never
-  a missing finding. Silence is indistinguishable from absence, which violates
-  invariant 4.
+The hackathon lists Strands Agents SDK for Track 1 and Bedrock for Track 2.
+Strands ships both model providers behind one `Agent` API, gives `@tool` for the
+read-only tools, and `structured_output()` for schema-enforced findings. One
+agent implementation, one line of difference. Local models are weaker at tool
+use than Sonnet; the Track 1 demo uses a rubric with concrete criteria and the
+Track 2 demo carries the batch story.
 
-## AWS mapping (cloud track)
+## Storage
 
-| Concern | Service |
-|---|---|
-| Blob store | S3, versioning on |
-| Metadata + vectors | Aurora Serverless v2 Postgres + pgvector |
-| Queue | SQS, one queue per stage, DLQ on each |
-| Workers | ECS Fargate |
-| Sandbox | ECS Fargate task, no egress except a package-registry allowlist |
-| Models | Bedrock Mantle client, or Claude API direct |
-| Secrets | Secrets Manager; never mounted into a sandbox task |
+Everything is JSON under a run prefix in the `Store`. There is no database.
+
+```
+batches/<batchId>.json
+runs/<runId>/manifest.json
+runs/<runId>/submission.json
+runs/<runId>/rubric.json
+runs/<runId>/probes.json
+runs/<runId>/findings.json
+runs/<runId>/decisions.json      # human writes; everything else is machine output
+runs/<runId>/report_pages.json
+runs/<runId>/repo/               # the checkout, only in LocalStore; S3Store keeps a tarball
+precedents/<batchId>.json
+```
+
+`# ponytail: decisions.json is read-modify-write with no lock. Fine for one
+evaluator per batch; move Decision/Precedent to a DynamoDB table when two people
+grade the same batch concurrently.`
+
+Content addressing survives in the form that matters: every locator carries the
+`commitSha` of the checkout, so permalinks stay valid after a force-push, and the
+`Evidence.quote` is denormalized so exports render after the repo goes private.
+
+## Concurrency
+
+- One process. The web server runs a submission's pipeline in a background
+  thread; the CLI runs it inline.
+- Stage 05 fans out per requirement through a `ThreadPoolExecutor(max_workers=4)`.
+  Bedrock throttles above that on a fresh account.
+- A failed probe or model call produces an `UNVERIFIED` finding with the failure
+  recorded, never a missing finding (invariant 4).
+
+`# ponytail: in-process thread pool. Move stage 05 to Lambda behind a Step
+Functions Map state when a batch outgrows one App Runner instance.`
+
+## Deployment (Track 2)
+
+| Concern | Service | Why this one |
+|---|---|---|
+| App + UI + pipeline | **App Runner**, one container from ECR | "A URL in minutes" is literally the track description. One Dockerfile, no VPC, no Lambda layers for `git`. |
+| Blob + JSON store | **S3**, versioning on | The only persistence. |
+| Model | **Amazon Bedrock**, Claude Sonnet | Frontier model billed to the AWS account — covered by credits. |
+| Auth | Single shared token (`REPOMAN_TOKEN`), HTTP basic | Cognito is the post-hackathon item. |
+| Secrets | App Runner env vars; task role grants `s3:*` on one bucket and `bedrock:InvokeModel*` | Nothing else. |
+
+Not used in v1, deliberately: Lambda, API Gateway, DynamoDB, Step Functions,
+EventBridge, Cognito, Amplify. Each is a natural next step (noted above where it
+applies) and none is needed to demonstrate the thesis.
 
 ## Why this shape
 
-Three properties are load-bearing and everything else was chosen to preserve
-them:
-
-1. **Every finding is traceable to bytes.** Content addressing plus locator
-   resolution means an evidence packet stays valid after a force-push.
+1. **Every finding is traceable to bytes.** The resolver re-reads the checkout at
+   the pinned commit and matches the quote before a locator is stored.
 2. **Deterministic and model-derived evidence are interchangeable downstream.**
-   This lets us move checks from the expensive path to the cheap path over time
-   without touching the UI or the exports.
-3. **The human is a pipeline stage, not a consumer.** Overrides feed back in as
-   precedent, which is why `Decision` and `Precedent` are first-class types rather
-   than UI state.
+   Same `Evidence` type, `provenance` field tells the UI which is which.
+3. **The human is a pipeline stage, not a consumer.** `Decision` and `Precedent`
+   are first-class and feed back into later runs in the batch.

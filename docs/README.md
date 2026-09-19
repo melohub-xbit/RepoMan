@@ -8,12 +8,12 @@ agent or about to write code.
 |---|---|---|
 | 00 | [Product brief](00-product-brief.md) | Problem, users, thesis, the finding model, the five verification states |
 | 01 | [Value and scope](01-value-and-scope.md) | Ranked feature set beyond the core engine; what settles scope arguments |
-| 02 | [Architecture](02-architecture.md) | Seven-stage pipeline, modules, the five ports, local vs. cloud, AWS mapping |
+| 02 | [Architecture](02-architecture.md) | Six-stage pipeline, the single package, the two ports, local vs. cloud, AWS mapping |
 | 03 | [Data model](03-data-model.md) | `EvidenceLocator` and every core type. **Source of truth for schemas.** |
-| 04 | [Model orchestration](04-model-orchestration.md) | Model tiering, prompt caching, structured outputs, document citations, cost |
+| 04 | [Model orchestration](04-model-orchestration.md) | Strands agent, Ollama vs. Bedrock, read-only tools and caps, resolver rule, cost |
 | 05 | [Security model](05-security-model.md) | Prompt injection, the four boundaries, sandboxing, PII, data handling |
-| 06 | [Build plan](06-build-plan.md) | Three-day phasing, the cut list, the demo script, metrics |
-| 07 | [Open questions](07-open-questions.md) | Unresolved decisions and what each one blocks |
+| 06 | [Build plan](06-build-plan.md) | Two-day phasing, the cut list, the demo script, metrics |
+| 07 | [Open questions](07-open-questions.md) | Decisions settled for the hackathon build, and what remains open |
 
 ## Reading paths
 
@@ -23,7 +23,7 @@ agent or about to write code.
 **"I'm implementing a feature."**
 [`../AGENTS.md`](../AGENTS.md) → 03 → the doc for your layer.
 
-**"I'm writing something that calls Claude."**
+**"I'm writing something in `verify/`."**
 04, all of it, before the first line.
 
 **"I'm touching submitted content or running submitted code."**
@@ -34,8 +34,7 @@ agent or about to write code.
 
 ## Conventions for editing these docs
 
-- 03 changes first, then the JSON Schema, then both language mirrors. Never the
-  other way around.
+- 03 changes first, then `repoman/core/types.py`, in the same commit.
 - When an open question in 07 is settled, move the answer into the doc it affects
   and leave a one-line record in 07 saying when and why.
 - These docs are the context AI agents load. Keep them concrete — names, types,

@@ -74,7 +74,9 @@ Static evidence is half a claim. Deterministic probes buy enormous credibility
 for very little work:
 
 - **Build and test in a sandbox.** Does it compile? Do tests pass? What is real
-  coverage versus claimed coverage?
+  coverage versus claimed coverage? *(Cut from v1 — see
+  [`06-build-plan.md`](06-build-plan.md). Test discovery and dependency
+  reachability are static and stay in.)*
 - **Hit the deployed URL.** Alive, status code, screenshot of the landing page,
   captured with a timestamp.
 - **Dependency reachability.** `redis` in the manifest with zero imports is
@@ -144,10 +146,16 @@ property, not just a demo beat.
 
 ## 9. Surfaces beyond the web workspace
 
-- **CLI** (`repoman run ./submissions --rubric rubric.md`) — this is what makes
+- **CLI** (`repoman run ./submission --rubric rubric.md`) — this is what makes
   "student data never leaves the machine" a credible claim rather than a slide.
-  It is the local-first story made concrete, and it matters for FERPA-style
+  With Ollama as the model it is literally true. It matters for FERPA-style
   institutional procurement.
+- **Student self-check** — the same CLI, run by the submitter before submitting,
+  against the published rubric. No new code; a second user for free, and
+  submissions arrive with fewer unverifiable claims.
+- **Viva questions** — every non-`VERIFIED` finding carries two or three
+  questions to ask the team. For oral exams and hackathon Q&A rounds this is the
+  first thing evaluators reach for.
 - **Browser extension** — overlay the requirement/evidence panel on github.com
   while the evaluator is already reading the repo there.
 

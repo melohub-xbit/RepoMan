@@ -6,31 +6,41 @@ documentation map. Everything in it applies to Claude Code.
 
 ## Claude Code specifics
 
-**Before writing anything that calls the Claude API**, read
+**Before writing anything in `repoman/verify/`**, read
 [`docs/04-model-orchestration.md`](docs/04-model-orchestration.md). It pins the
-model tiering, the prompt-caching prefix layout, the structured-output contract,
-and the citation mechanism. Getting these wrong is expensive rather than merely
-incorrect.
+agent runtime (Strands Agents SDK), the two providers, the tool set and caps,
+the structured-output contract, and the resolver rule.
 
-**Model IDs used in this project** (do not substitute or append date suffixes):
+**Environment variables** (the whole configuration surface):
 
-- `claude-opus-5` — rubric compilation, contradiction detection, finding prose
-- `claude-sonnet-5` — per-requirement evidence verification (the workhorse)
-- `claude-haiku-4-5` — high-volume chunk labelling
+| Var | Track 1 (local) | Track 2 (AWS) |
+|---|---|---|
+| `REPOMAN_OLLAMA_HOST` | `http://localhost:11434` | unset |
+| `REPOMAN_MODEL_ID` | `qwen3:8b` | Bedrock inference profile ID for Claude Sonnet, copied from the console — never constructed from memory |
+| `AWS_REGION` | unset | e.g. `us-east-1` |
+| `REPOMAN_BUCKET` | unset → `LocalStore(./data)` | bucket name → `S3Store` |
+| `REPOMAN_TOKEN` | unset (no auth) | shared token for the web UI |
 
-**When touching types or schemas**, `docs/03-data-model.md` is the source of
-truth and both language mirrors must be regenerated together.
+**When touching types**, `docs/03-data-model.md` is the source of truth and
+`repoman/core/types.py` changes in the same commit.
 
 **When adding a feature**, check it against the five invariants in `AGENTS.md`
 before implementing. The most common violation is quietly reintroducing a score.
+The second most common is adding a tool the agent can call that is not read-only.
 
 ## Working agreements
 
-- Prefer finishing the vertical slice over broadening any one layer.
-- Deterministic probes before model calls — they are cheaper, faster, and more
-  trusted by evaluators. If a check can be computed, compute it.
-- Instrument `response.usage` on every model call from day one. Our published
-  cost figure is currently an estimate and needs to become a measurement.
+- Finish the vertical slice before broadening any layer. Day 1 has no UI.
+- Deterministic probes before model calls — cheaper, faster, and more trusted by
+  evaluators. If a check can be computed, compute it.
+- Record `usage` from every agent run into `RunManifest.usage` from day one. The
+  cost figure in `docs/04` is an estimate until it is a measurement.
+- Smoke-test agent changes against Ollama first (free), then Bedrock.
 - Test fixtures live in `fixtures/` as small real repositories, including one
   with a planted prompt-injection payload. Do not delete that one — it is a
-  security regression test and a demo asset.
+  security regression test and a demo asset. Never install dependencies inside a
+  fixture.
+- Stdlib and already-installed packages before new dependencies. The dependency
+  list is: `strands-agents`, `pydantic`, `fastapi`, `uvicorn`, `jinja2`,
+  `pypdf`, `boto3`, `httpx`. Adding to it needs a sentence of justification in
+  the commit message.

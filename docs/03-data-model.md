@@ -1,8 +1,8 @@
 # 03 — Data model
 
-This document is the **source of truth for types**. The TypeScript and Python
-mirrors in `packages/core` are generated from `packages/core/schema/*.json`, and
-that schema is generated from what is written here. Change this document first.
+This document is the **source of truth for types**. `repoman/core/types.py`
+holds the pydantic models that implement it. Change this document first, then
+the models, in the same commit.
 
 ---
 
@@ -14,56 +14,45 @@ produce at least one of these is rejected before it reaches the evaluator,
 
 ```ts
 type EvidenceLocator =
-  | { kind: "file_range";   artifactId: string; path: string;
-      startLine: number; endLine: number; blobSha: string }
+  | { kind: "file_range";   path: string; startLine: number; endLine: number;
+      commitSha: string }
 
-  | { kind: "doc_span";     artifactId: string; page?: number;
-      startChar: number; endChar: number }
+  | { kind: "doc_span";     artifactId: string; page: number }   // 1-indexed
 
-  | { kind: "media_span";   artifactId: string; startMs: number;
-      endMs: number; transcriptRef: string }
+  | { kind: "http_capture"; url: string; status: number; capturedAt: string;
+      title?: string }
 
-  | { kind: "http_capture"; artifactId: string; url: string; status: number;
-      capturedAt: string; screenshotSha: string }
-
-  | { kind: "git_object";   artifactId: string; commitSha: string;
-      authorEmailHash: string; committedAt: string }
+  | { kind: "git_object";   commitSha: string; authorHash: string;
+      committedAt: string }
 ```
 
 Every variant renders to something a human can open:
 
 ```
-file_range   → github.com/<org>/<repo>/blob/<blobSha>/<path>#L41-L68
-media_span   → workspace deep-link, seeks the player to 02:14
-doc_span     → highlighted span in the embedded PDF viewer
-http_capture → stored screenshot + the recorded status and timestamp
+file_range   → github.com/<org>/<repo>/blob/<commitSha>/<path>#L41-L68
+             → for a zip submission: the workspace's own file view at those lines
+doc_span     → workspace page view with the quote highlighted
+http_capture → the recorded status, title and timestamp
 git_object   → commit permalink
 ```
 
+`media_span` (video) is out of v1 and removed rather than left as dead schema.
+Add it back with the transcription stage.
+
 ### Rules
 
-1. **`blobSha` and `commitSha` are required, not optional.** Locators reference
-   immutable content, never a branch name or a mutable path. An evidence packet
-   must stay valid after the student force-pushes.
-2. **`authorEmailHash`, never a raw email.** Hashing happens at acquisition time
-   in `services/acquire`, before anything else sees the data.
-3. **Resolution before storage.** Every locator is re-read from the blob store at
-   the given SHA and the quoted text must match. A locator that does not resolve
-   is dropped and logged — never rendered, never stored.
-4. **`doc_span` is never produced by a model.** See below.
-
-### Where doc spans come from
-
-We do not ask the model to report PDF page numbers; it will get them wrong. The
-report is sent as a `document` content block with `citations: {enabled: true}`,
-and the API returns `page_location` (`start_page_number` / `end_page_number`,
-1-indexed) and `char_location` (`start_char_index` / `end_char_index`) for every
-cited passage. We map those directly onto `doc_span`.
-
-The locator is produced by the platform, not guessed by the model. This removes
-an entire class of fabricated citation, and it is the single highest-value
-implementation detail in the system. See
-[`04-model-orchestration.md`](04-model-orchestration.md).
+1. **`commitSha` is required, not optional.** Locators reference the pinned
+   checkout, never a branch name. An evidence packet must stay valid after the
+   student force-pushes.
+2. **`authorHash`, never a raw email.** Hashing happens in `intake` when the git
+   log is read, before anything else sees the data.
+3. **Resolution before storage.** Every locator is re-read from the checkout (or
+   `report_pages.json`) and `Evidence.quote` must be found there. A locator that
+   does not resolve is dropped and counted — never rendered, never stored. See
+   [`04-model-orchestration.md`](04-model-orchestration.md), Rule 2.
+4. **The quote is the proof.** A `doc_span` is page + quote; a `file_range` is
+   lines + quote. The model proposes both; the resolver confirms the quote is
+   really there. This is what makes a model-proposed page number safe to store.
 
 ---
 
@@ -73,11 +62,12 @@ implementation detail in the system. See
 type Submission = {
   id: string;
   batchId: string;            // the cohort / event this belongs to
-  externalRef: string;        // the adapter's own ID, for idempotent re-import
-  source: IntakeSource;       // which adapter produced this
+  source: "github" | "zip";
+  repoUrl?: string;           // for permalinks; absent for zip
+  commitSha: string;          // the pinned checkout every file_range refers to
   artifacts: Artifact[];
   acquiredAt: string;
-  // Identity fields are separated so blind mode can strip them pre-retrieval.
+  // Identity fields are separated so blind mode can strip them before the run.
   identity: SubmissionIdentity | null;
 };
 
@@ -88,12 +78,10 @@ type SubmissionIdentity = {
 type Artifact = {
   id: string;
   submissionId: string;
-  kind: "repo" | "readme" | "report" | "deck" | "video" | "diagram" | "deploy";
+  kind: "repo" | "readme" | "report" | "deploy";   // a deck exported to PDF is a "report"
   uri: string;                // original location, for provenance
-  blobSha: string | null;     // null for `deploy`, which is captured not stored
-  mediaType: string;
-  bytes: number;
-  quarantined: boolean;       // set by the injection scanner
+  sha256: string | null;      // null for `deploy`, which is captured not stored
+  quarantined: boolean;       // set by the injection scanner; excluded from tools
 };
 ```
 
@@ -113,6 +101,7 @@ type Requirement = {
   sourceSpan: { startChar: number; endChar: number };  // back into sourceText
   verifiable: boolean;        // false = "creativity"; stays 100% human
   unverifiableReason?: string;
+  proposedBy: "evaluator" | "repoman";   // "repoman" when the compiler decomposed a holistic line
 };
 ```
 
@@ -143,6 +132,8 @@ type Finding = {
   evidence: Evidence[];       // minItems: 1 — enforced at the schema level
   confidence: "high" | "medium" | "low";
   confidenceReason: string;
+  searchExhausted: boolean;   // true when the tool-call cap ended the search
+  questions: string[];        // viva questions for the submitter; empty when VERIFIED
   producedBy: string;         // model ID + prompt hash
 };
 
@@ -185,12 +176,14 @@ or silently not — are both unfair in different directions, so we make it visib
 ```ts
 type RunManifest = {
   id: string; submissionId: string; rubricId: string; rubricVersion: number;
+  commitSha: string;
   artifactShas: Record<string, string>;
   probeVersions: Record<string, string>;
-  modelIds: Record<string, string>;     // stage → model ID
-  promptHashes: Record<string, string>; // stage → template hash
+  modelId: string;
+  promptHashes: Record<string, string>; // pass → template hash
   startedAt: string; finishedAt: string;
-  usage: UsageRecord[];                 // per model call; see 04
+  usage: UsageRecord[];                 // per agent run; see 04
+  mismatches: number;                   // locators dropped by the resolver
 };
 ```
 
@@ -213,11 +206,13 @@ presented as one, weighted by rubric weight, or converted to a percentage grade.
 
 ## Storage notes
 
-- Blobs are content-addressed: `blobs/<sha256>`. Deduplication across a cohort is
-  free and significant — eighty submissions of the same assignment share most of
-  their dependency trees.
+- Everything is JSON under `runs/<runId>/` in the `Store`; the layout is in
+  [`02-architecture.md`](02-architecture.md). No database.
 - `Evidence.quote` is denormalized deliberately. It is what the export renders
   when the original repository has gone private.
 - Everything except `Decision` and `Precedent` is derivable from a `RunManifest`
-  plus the blob store. Those two are the human's contribution and are backed up
-  separately.
+  plus the checkout. Those two are the human's contribution; they live in their
+  own file and are never overwritten by a re-run.
+- Findings are immutable once written. A re-run writes a new `runId`; the
+  submission page shows the latest and links the history. See
+  [`07-open-questions.md`](07-open-questions.md) §1.
