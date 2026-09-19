@@ -2,24 +2,24 @@
 <tr id="row-{{ r.run_id }}" {% if running %}hx-get="/runs/{{ r.run_id }}/status" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
   <td class="name">
     <a href="/runs/{{ r.run_id }}" style="view-transition-name: sub-{{ r.run_id }}">{{ (r.sub.repoUrl or r.run_id)|replace('https://github.com/','') }}</a>
-    {% if r.sub.commitSha %}<span class="sha">{{ r.sub.commitSha[:10] }}</span>{% endif %}
+    {% if r.sub.commitSha %}<span class="sha">at {{ r.sub.commitSha[:10] }}</span>{% endif %}
   </td>
   {% if running %}
-  <td colspan="3" class="stage running cell-swap">
+  <td colspan="3" class="stage running">
     <span class="step">{{ r.status.stage }}</span>
     <span class="detail">{% if r.status.total %}{{ r.status.done }} of {{ r.status.total }} · {% endif %}{{ r.status.detail }}</span>
     {% set steps = ['queued','acquire','probe','verify','contradict','done'] %}
-    {% set base = steps.index(r.status.stage) / (steps|length - 1) * 100 %}
+    {% set base = steps.index(r.status.stage) / (steps|length - 1) %}
     {% set within = (r.status.done / r.status.total) if r.status.total else 0 %}
-    <span class="progress" aria-hidden="true"><i style="--p: {{ ((base + within * 100 / (steps|length - 1)) / 100)|round(3) }}"></i></span>
+    <span class="progress" aria-hidden="true"><i style="--p: {{ (base + within / (steps|length - 1))|round(3) }}"></i></span>
   </td>
   {% elif r.status.stage == 'failed' %}
-  <td colspan="3" class="stage failed cell-swap"><span class="step">failed</span> <span class="detail">{{ r.status.detail }}</span></td>
+  <td colspan="3" class="stage failed"><span class="step">failed</span><span class="detail">{{ r.status.detail }}</span></td>
   {% else %}
-  <td class="cov cell-swap"><b>{{ r.verified }}</b> of {{ r.verifiable }} verified</td>
-  <td class="hide-sm cell-swap"><div class="states">{% for s in r.states %}{{ statechip(s, '') }}{% endfor %}</div></td>
-  <td class="hide-sm cell-swap"><div class="states">{% for f in r.flags %}<span class="state state-FLAGGED">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}</div></td>
+  <td class="cov"><b>{{ r.verified }}</b> of {{ r.verifiable }}<span class="bar" aria-hidden="true"><i style="--p: {{ (r.verified / r.verifiable)|round(3) if r.verifiable else 0 }}"></i></span></td>
+  <td class="hide-sm"><div class="tally">{% for s, n in r.tally.items()|sort(attribute='0') %}<span class="chip state-{{ s }}" title="{{ s|lower }}">{{ mark(s) }}<b>{{ n }}</b></span>{% endfor %}</div></td>
+  <td class="hide-sm"><div class="tally">{% for f in r.flags %}<span class="chip state-FLAGGED">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}</div></td>
   {% endif %}
   <td class="decided">{% if r.decided %}<b>{{ r.decided }}</b> of {{ r.claims|length }}{% else %}—{% endif %}</td>
-  <td class="act-cell">{% if not running %}<a class="act" href="/runs/{{ r.run_id }}">Open</a>{% endif %}</td>
+  <td class="act-cell">{% if not running %}<a class="btn ghost sm" href="/runs/{{ r.run_id }}">Open →</a>{% endif %}</td>
 </tr>

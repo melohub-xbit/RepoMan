@@ -1,68 +1,75 @@
 {% extends "base.html" %}
 {% block title %}{{ batch.name }} · RepoMan{% endblock %}
-{% block crumbs %}<span class="crumb" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</span>{% endblock %}
-{% block facts %}
-  <span class="fact"><b>{{ rows|length }}</b> submission{{ '' if rows|length == 1 else 's' }}</span>
-  {% if rubric %}<a class="fact" href="/batches/{{ batch.id }}/rubric">rubric v{{ rubric.version }} · {{ rubric.requirements|selectattr('verifiable')|list|length }} checked</a>{% endif %}
-  {% if rows %}<a class="fact" href="/batches/{{ batch.id }}/export.csv">export csv</a>{% endif %}
+{% block crumbs %}<span style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</span>{% endblock %}
+{% block topright %}
+  {% if rubric %}<a class="btn ghost sm" href="/batches/{{ batch.id }}/rubric">Rubric · v{{ rubric.version }}</a>{% endif %}
+  {% if rows %}<a class="btn ghost sm" href="/batches/{{ batch.id }}/export.csv">Export CSV</a>{% endif %}
 {% endblock %}
 {% block body %}
-<div class="title">
-  <h1>{{ batch.name }}</h1>
-  <p class="sub">Ordered by where a human is needed: flagged, then contradicted, then least evidence. Running rows fill in as the investigation proceeds.</p>
+{% set need = rows|selectattr('flags')|list|length + rows|rejectattr('flags')|selectattr('states', 'contains', 'CONTRADICTED')|list|length %}
+{% set decided = rows|selectattr('decided', 'equalto', rows[0].claims|length if rows else 0)|list|length if rows else 0 %}
+<div class="pagehead">
+  <div><h1>{{ batch.name }}</h1>
+    <div class="meta">{% if batch.eventWindow %}<span>{{ batch.eventWindow[0] }} → {{ batch.eventWindow[1] }}</span>{% endif %}{% if rubric %}<span>{{ rubric.requirements|selectattr('verifiable')|list|length }} requirements checked · {{ rubric.requirements|rejectattr('verifiable')|list|length }} stay with you</span>{% endif %}</div></div>
 </div>
 
+{% if rows %}
+<div class="facts">
+  <div class="fact"><span class="k">Submissions</span><span class="v">{{ rows|length }}</span></div>
+  <div class="fact"><span class="k">Need a human first</span><span class="v">{{ need }} <small>flagged or contradicted</small></span></div>
+  <div class="fact"><span class="k">Fully decided</span><span class="v">{{ decided }} <small>of {{ rows|length }}</small></span></div>
+  <div class="tally">
+    <span class="chip state-VERIFIED">{{ mark('VERIFIED') }}verified</span><span class="chip state-PARTIAL">{{ mark('PARTIAL') }}partial</span><span class="chip state-UNVERIFIED">{{ mark('UNVERIFIED') }}looked · not found</span><span class="chip state-CONTRADICTED">{{ mark('CONTRADICTED') }}contradicted</span><span class="chip state-FLAGGED">{{ mark('FLAGGED') }}flag</span>
+  </div>
+</div>
+{% endif %}
+
 {% if not rubric %}
-<p class="empty"><b>No rubric yet.</b> <a href="/batches/{{ batch.id }}/rubric">Paste and approve one</a> before adding submissions — findings are only as good as the requirements they answer.</p>
+<div class="card empty"><b>No rubric yet</b>Paste and approve one before adding submissions — findings are only as good as the requirements they answer.<br><a class="btn" href="/batches/{{ batch.id }}/rubric">Paste the rubric →</a></div>
 {% elif not rows %}
-<p class="empty"><b>Nothing submitted.</b> Add a GitHub URL below; a report PDF and a deployed URL make the findings richer.</p>
+<div class="card empty"><b>Nothing submitted yet</b>Add a GitHub URL below. A report PDF and a deployed URL make the findings richer.</div>
 {% else %}
+<div class="section"><span class="k">Queue<span class="why">ordered by where a human is needed: flagged, then contradicted, then least evidence</span></span>
+<div class="card">
 <table class="queue">
-  <thead><tr>
-    <th>Submission</th><th>Evidence</th><th class="hide-sm">Findings</th><th class="hide-sm">Flags</th><th>Decided</th><th></th>
-  </tr></thead>
-  <tbody>
-  {% for r in rows %}{% include "_row.html" %}{% endfor %}
-  </tbody>
+  <thead><tr><th>Submission</th><th>Evidence found</th><th class="hide-sm">Findings</th><th class="hide-sm">Flags</th><th>Decided</th><th></th></tr></thead>
+  <tbody>{% for r in rows %}{% include "_row.html" %}{% endfor %}</tbody>
 </table>
+</div></div>
 {% endif %}
 
-{% if precedents %}
-<section class="intake" style="margin-top:40px">
-  <h2>Precedents in this batch</h2>
-  <ul class="checks" style="grid-column:1">
-    {% for p in precedents %}<li class="check"><div class="loc"><span>{{ p.rule }}</span></div><div class="quote">applies to runs after {{ p.appliesFrom[:16].replace('T',' ') }}</div></li>{% endfor %}
-  </ul>
-</section>
-{% endif %}
-
-{% if rubric %}
-<section class="intake">
-  <h2>Add submissions</h2>
-  <form method="post" action="/batches/{{ batch.id }}/submissions" enctype="multipart/form-data">
-    <label class="field"><span>GitHub repository URL</span><input name="repo_url" placeholder="https://github.com/team/project" autocomplete="off"></label>
-    <div class="row">
-      <label class="field"><span>Report or deck · PDF</span><input name="report" type="file" accept="application/pdf"></label>
-      <label class="field"><span>Deployed URL</span><input name="deploy_url" placeholder="https://project.example.app" autocomplete="off"></label>
-    </div>
-    <details>
-      <summary class="act quiet" style="display:inline-block">+ many at once</summary>
-      <label class="field" style="margin-top:12px"><span>One GitHub URL per line</span><textarea name="urls" rows="4"></textarea></label>
-    </details>
-    <div class="actions"><button class="act" type="submit">Investigate →</button></div>
-  </form>
-  <aside class="aside">
-    <p>The repository is cloned at its current commit and every citation is pinned to that commit, so links keep working after a force-push.</p>
-    <p>Nothing in the submission is executed.</p>
-  </aside>
-</section>
-{% endif %}
+<div class="twocol section">
+  {% if rubric %}
+  <div class="card panel" id="add">
+    <h2>Add submissions</h2>
+    <p class="lead">The repository is cloned at its current commit; every citation is pinned to it. Nothing in the submission is executed.</p>
+    <form method="post" action="/batches/{{ batch.id }}/submissions" enctype="multipart/form-data">
+      <label class="field"><span>GitHub repository URL</span><input name="repo_url" placeholder="https://github.com/team/project" autocomplete="off"></label>
+      <div class="row">
+        <label class="field"><span>Report or deck · PDF</span><input name="report" type="file" accept="application/pdf"></label>
+        <label class="field"><span>Deployed URL</span><input name="deploy_url" placeholder="https://project.example.app" autocomplete="off"></label>
+      </div>
+      <details><summary>Many at once</summary><label class="field"><span>One GitHub URL per line</span><textarea name="urls" rows="4"></textarea></label></details>
+      <div class="actions"><button class="btn" type="submit">Investigate →</button><span class="hint" style="font-size:13.5px;color:var(--graphite);font-style:italic">Takes a couple of minutes per submission. The row fills in as it runs.</span></div>
+    </form>
+  </div>
+  {% else %}<div></div>{% endif %}
+  <div>
+    {% if precedents %}
+    <div class="card"><div class="panel" style="padding-bottom:8px"><h2>Precedents in this batch</h2><p class="lead">Rulings you made while overriding; applied to every run after them.</p></div>
+      <ul class="precedents">{% for p in precedents %}<li>{{ p.rule }}<span class="k">applies to runs after {{ p.appliesFrom[:16].replace('T',' ') }}</span></li>{% endfor %}</ul></div>
+    {% else %}
+    <div class="card aside"><span class="k">How to read the queue</span>
+      <p><b>Evidence found</b> is a count of requirements with verified evidence — not a grade.</p>
+      <p><b>Findings</b> shows the state of every checked requirement at a glance.</p>
+      <p><b>Flags</b> are integrity signals from the git history and the injection scan. Look before you score.</p>
+      <p>Open a submission to read each finding, open its evidence in place, and enter your marks.</p></div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
 {% block script %}
 <script>
-  // a finished row re-sorts the queue: reload once, quietly, when the last running row finishes
-  document.body.addEventListener('run-finished', () => {
-    if (!document.querySelector('.stage.running')) setTimeout(() => location.reload(), 600);
-  });
+  document.body.addEventListener('run-finished', () => { if (!document.querySelector('.stage.running')) setTimeout(() => location.reload(), 600); });
 </script>
 {% endblock %}

@@ -1,27 +1,15 @@
-<span class="leader" aria-hidden="true"></span>
-<div class="head">
-  <b>{{ locator_text(ev.locator) }}</b>
-  <span>{{ ev.provenance }}{% if ev.probeId %} · {{ ev.probeId }}{% endif %}</span>
-  {% if ev.locator.kind == 'file_range' and sub.repoUrl %}<a href="{{ permalink(ev.locator, sub) }}" target="_blank" rel="noopener">open on GitHub ↗</a>{% endif %}
-  <button class="act quiet close" type="button" onclick="closeProof(this)">close</button>
-</div>
 {% if ev.locator.kind == 'file_range' %}
+  <div class="head" style="border-bottom:0;background:transparent;padding:10px 16px 0"><span>{{ ev.provenance }}{% if ev.probeId %} · {{ ev.probeId }}{% endif %} · {{ ev.locator.path }}</span>{% if sub.repoUrl %}<span class="right"><a href="{{ permalink(ev.locator, sub) }}" target="_blank" rel="noopener">open on GitHub ↗</a></span>{% endif %}</div>
   {% if body %}
   <pre><code>{% for l in body %}<span class="line{% if l.cited %} cited{% endif %}"><span class="n">{{ l.n }}</span><span>{{ l.html|safe }}</span></span>{% endfor %}</code></pre>
   {% else %}
-  <p class="capture">The checkout is not available on this host. Quote as resolved:</p>
-  <pre style="margin-top:8px"><code>{{ ev.quote }}</code></pre>
+  <div class="capture">The checkout is not available on this host. The quote as resolved:<pre><code>{{ ev.quote }}</code></pre></div>
   {% endif %}
 {% elif ev.locator.kind == 'doc_span' %}
-  {% if body %}
-  <div class="page">{{ body }}</div>
-  {% else %}
-  <pre><code>{{ ev.quote }}</code></pre>
-  {% endif %}
+  <div class="head" style="border-bottom:0;background:transparent;padding:10px 16px 0"><span>{{ ev.provenance }} · report, page {{ ev.locator.page }}</span></div>
+  {% if body %}<div class="page">{{ body }}</div>{% else %}<div class="capture"><pre><code>{{ ev.quote }}</code></pre></div>{% endif %}
 {% elif ev.locator.kind == 'http_capture' %}
-  <p class="capture">GET {{ ev.locator.url }} → <b>{{ ev.locator.status }}</b>{% if ev.locator.title %} · “{{ ev.locator.title }}”{% endif %} · captured {{ ev.locator.capturedAt.replace('T',' ').replace('Z',' UTC') }}</p>
-  <pre style="margin-top:8px"><code>{{ ev.quote }}</code></pre>
+  <div class="capture">GET {{ ev.locator.url }} → <b>{{ ev.locator.status }}</b>{% if ev.locator.title %} · “{{ ev.locator.title }}”{% endif %}<br>captured {{ ev.locator.capturedAt.replace('T',' ').replace('Z',' UTC') }}<pre><code>{{ ev.quote }}</code></pre></div>
 {% else %}
-  <p class="capture">commit {{ ev.locator.commitSha }} · author {{ ev.locator.authorHash }} · {{ ev.locator.committedAt.replace('T',' ') }}</p>
-  <pre style="margin-top:8px"><code>{{ ev.quote }}</code></pre>
+  <div class="capture">commit {{ ev.locator.commitSha }} · author {{ ev.locator.authorHash }} · {{ ev.locator.committedAt.replace('T',' ') }}<pre><code>{{ ev.quote }}</code></pre></div>
 {% endif %}

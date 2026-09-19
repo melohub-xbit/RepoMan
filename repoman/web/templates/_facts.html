@@ -1,0 +1,4 @@
+<div class="fact"><span class="k">Evidence found</span><span class="v">{{ verified }} <small>of {{ verifiable }} requirements</small></span></div>
+<div class="fact"><span class="k">Your decisions</span><span class="v">{{ decided }} <small>of {{ claims|length }}</small></span></div>
+<div class="fact"><span class="k">Your marks</span><span class="v">{% if total_marks is not none %}{{ total_marks|int if total_marks == total_marks|int else total_marks }}{% else %}—{% endif %} <small>of {{ total_weight|int }}</small></span></div>
+<div class="tally">{% for s in ['VERIFIED','PARTIAL','UNVERIFIED','CONTRADICTED'] %}{% if tally.get(s) %}<span class="chip state-{{ s }}">{{ mark(s) }}<b>{{ tally[s] }}</b> {{ 'looked · not found' if s == 'UNVERIFIED' else s|lower }}</span>{% endif %}{% endfor %}{% if flags %}<span class="chip state-FLAGGED">{{ mark('FLAGGED') }}<b>{{ flags|length }}</b> flag{{ '' if flags|length == 1 else 's' }}</span>{% endif %}</div>

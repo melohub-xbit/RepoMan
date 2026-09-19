@@ -1,15 +1,16 @@
 <form class="decision" hx-post="/runs/{{ run_id }}/decisions" hx-target="#claim-{{ req.id }}" hx-swap="outerHTML">
+  <span class="k">Your decision</span>
   <input type="hidden" name="requirement_id" value="{{ req.id }}">
   <input type="hidden" name="action" value="accept">
   {% if req.verifiable and f %}
-  <button class="act" type="submit">Accept</button>
-  <button class="act" type="button" data-override aria-pressed="false">Override</button>
-  {% endif %}
-  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks"> / {{ req.weight|int }}</label>
-  <label class="note"><input name="note" placeholder="note — optional" autocomplete="off"></label>
-  {% if req.verifiable and f %}
-  <label class="precedent">precedent <input name="precedent" placeholder="e.g. accept application.yml cache config as caching evidence — applies to the rest of this batch" autocomplete="off"></label>
+  <button class="btn" type="submit">Accept finding</button>
+  <button class="btn ghost" type="button" data-override aria-pressed="false">Override</button>
   {% else %}
-  <button class="act" type="submit">Record</button>
+  <button class="btn" type="submit">Record</button>
+  {% endif %}
+  <label class="marks">marks <input name="score" type="number" min="0" max="{{ req.weight }}" step="0.5" inputmode="decimal" aria-label="Your marks" placeholder="—"> / {{ req.weight|int }}</label>
+  <label class="note"><input name="note" placeholder="Note — optional" autocomplete="off"></label>
+  {% if req.verifiable and f %}
+  <label class="precedent">precedent <input name="precedent" placeholder="Optional rule for the rest of this batch, e.g. accept application.yml cache config as caching evidence" autocomplete="off"></label>
   {% endif %}
 </form>

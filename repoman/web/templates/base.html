@@ -10,7 +10,7 @@
 <link rel="icon" href="/favicon.ico" type="image/svg+xml">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer></script>
 </head>
-<body hx-boost="false">
+<body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="m-VERIFIED" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4"/></symbol>
   <symbol id="m-PARTIAL" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" stroke="none"/></symbol>
@@ -20,21 +20,52 @@
   <symbol id="m-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" stroke-dasharray="2 2.5"/></symbol>
   <symbol id="i-ext" viewBox="0 0 16 16"><path d="M6.5 3H3v10h10V9.5M9 3h4v4M13 3 7 9"/></symbol>
   <symbol id="i-tick" viewBox="0 0 16 16"><path d="M2.5 9 6 12.5 13.5 4"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 16 16"><path d="M3 2.5v10l2.8-2.6 1.7 3.6 1.9-.9-1.7-3.5L11.5 9z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></symbol>
 </svg>
-<div class="sheet">
-  <header class="masthead">
-    <a class="wordmark" href="/" style="view-transition-name: wordmark">{% include "_brand.html" %}<span>RepoMan</span></a>
-    {% block crumbs %}{% endblock %}
-    <span class="spacer"></span>
-    {% block facts %}{% endblock %}
-  </header>
-  {% block body %}{% endblock %}
-  <footer class="foot">
-    <span class="thesis">{% block footleft %}RepoMan does not judge people's work. It does the investigation a human needs before they can.{% endblock %}</span>
-    <span class="spacer" style="flex:1"></span>
-    <span>{% block footright %}{% endblock %}</span>
-  </footer>
+{% block layout %}
+<div class="shell">
+  <aside class="rail" id="rail">
+    <a class="brand" href="/" style="view-transition-name: wordmark">{% include "_brand.html" %}<span>RepoMan</span></a>
+    {% if batch is defined and batch %}
+    <nav aria-label="Batch">
+      <span class="k">Batch</span>
+      <a class="item" href="/batches/{{ batch.id }}" {% if request.url.path == '/batches/' ~ batch.id %}aria-current="page"{% endif %}><span class="name">{{ batch.name }}</span></a>
+      <a class="item" href="/batches/{{ batch.id }}/rubric" {% if request.url.path.endswith('/rubric') %}aria-current="page"{% endif %}><span class="name">Rubric{% if rubric %} · v{{ rubric.version }}{% endif %}</span></a>
+    </nav>
+    {% if rail_rows %}
+    <nav aria-label="Submissions">
+      <span class="k">Submissions · {{ rail_rows|length }}</span>
+      {% for r in rail_rows %}
+      <a class="item" href="/runs/{{ r.run_id }}" {% if run_id is defined and r.run_id == run_id %}aria-current="page"{% endif %}>
+        <span class="name">{{ (r.sub.repoUrl or r.run_id)|replace('https://github.com/','') }}</span>
+        {% if r.status.stage not in ('done','failed') %}<span class="stage">{{ r.status.stage }}</span>
+        {% else %}<span class="mini">{% for s in r.states %}<span class="state state-{{ s }}">{{ mark(s) }}</span>{% endfor %}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    {% endif %}
+    <div class="foot">
+      <a class="item" href="/batches" {% if request.url.path == '/batches' %}aria-current="page"{% endif %}>All batches</a>
+      {% if batch is defined and batch and rail_rows %}<a class="item" href="/batches/{{ batch.id }}/export.csv">Export CSV</a>{% endif %}
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <button class="btn quiet sm menu" type="button" onclick="document.getElementById('rail').classList.toggle('open')" aria-label="Menu"><svg class="mark" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <div class="crumbs">{% block crumbs %}{% endblock %}</div>
+      <div class="right">{% block topright %}{% endblock %}</div>
+    </div>
+    {% block body %}{% endblock %}
+    <footer class="foot">
+      <span class="thesis">{% block footleft %}RepoMan does not judge people's work. It does the investigation a human needs before they can.{% endblock %}</span>
+      <span style="flex:1"></span>
+      <span>{% block footright %}{% endblock %}</span>
+    </footer>
+  </main>
 </div>
+{% endblock %}
 {% block script %}{% endblock %}
 </body>
 </html>

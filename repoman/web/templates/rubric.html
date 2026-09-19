@@ -1,40 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Rubric · {{ batch.name }} · RepoMan{% endblock %}
-{% block crumbs %}<a class="crumb" href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a>{% endblock %}
-{% block facts %}<span class="fact">rubric{% if rubric %} · v{{ rubric.version }}{% endif %}</span>{% endblock %}
+{% block crumbs %}<a href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a><span class="sep">/</span><span>Rubric</span>{% endblock %}
 {% block body %}
 {% if not rubric %}
-<div class="title">
-  <h1>Paste the rubric as you have it</h1>
-  <p class="sub">Prose, a numbered list, marks in the margin — RepoMan turns it into a checklist you approve before anything runs.</p>
-</div>
-<section class="rubric-in">
-  <form method="post" action="/batches/{{ batch.id }}/rubric/compile">
-    <label class="field"><span>Rubric</span>
-      <textarea name="source" required rows="12" placeholder="1. Authentication with JWT — 15 marks
+<div class="pagehead"><div><h1>Paste the rubric as you have it</h1><div class="meta"><span>Prose, a numbered list, marks in the margin — RepoMan turns it into a checklist you approve before anything runs.</span></div></div></div>
+<div class="twocol">
+  <div class="card panel">
+    <form method="post" action="/batches/{{ batch.id }}/rubric/compile">
+      <label class="field"><span>Rubric</span>
+        <textarea name="source" required rows="12" placeholder="1. Authentication with JWT — 15 marks
 2. Role-based authorization (admin/user) — 15 marks
 3. Caching layer for read-heavy endpoints — 10 marks
 4. Automated tests with meaningful coverage — 20 marks
 5. Code quality and creativity — 40 marks"></textarea></label>
-    <div class="intake actions" style="margin:0;padding:0;border:0;display:flex;gap:28px"><button class="act" type="submit">Compile →</button></div>
-  </form>
-  <aside class="aside">
+      <div class="actions"><button class="btn" type="submit">Compile into a checklist →</button></div>
+    </form>
+  </div>
+  <div class="card aside">
+    <span class="k">What happens next</span>
     <p>Each line becomes one checkable requirement with its weight.</p>
-    <p>Anything that cannot be found in code, a report or a deployment — creativity, effort — is marked <b style="color:var(--ink);font-weight:500">stays with you</b> and never sent to a model.</p>
+    <p>Anything that cannot be found in code, a report or a deployment — creativity, effort — is marked <b>stays with you</b> and never sent to a model.</p>
     <p>Holistic lines ("engineering quality — 40") are split into proposals you can edit or delete.</p>
-  </aside>
-</section>
-{% else %}
-<div class="title">
-  <h1>Approve what will be checked</h1>
-  <p class="sub">{{ rubric.requirements|length }} requirements · {{ rubric.requirements|selectattr('verifiable')|list|length }} checkable · edit anything, then approve. Nothing runs until you do.</p>
+  </div>
 </div>
-<form method="post" action="/batches/{{ batch.id }}/rubric">
+{% else %}
+<div class="pagehead">
+  <div><h1>Approve what will be checked</h1>
+    <div class="meta"><span>{{ rubric.requirements|length }} requirements</span><span>{{ rubric.requirements|selectattr('verifiable')|list|length }} checked by RepoMan</span><span>{{ rubric.requirements|rejectattr('verifiable')|list|length }} stay with you</span><span>v{{ rubric.version }}</span></div></div>
+</div>
+<div class="legend"><span><i style="background:var(--partial)"></i>proposed by RepoMan — edit or accept</span><span><i style="background:var(--none)"></i>stays with you — never sent to a model</span></div>
+<form method="post" action="/batches/{{ batch.id }}/rubric" class="card">
 <table class="compiled">
   <thead><tr><th>Requirement</th><th>Weight</th><th>Checked by</th><th></th></tr></thead>
   <tbody>
   {% for r in rubric.requirements %}
-  <tr>
+  <tr class="{% if r.proposedBy == 'repoman' %}proposed{% elif not r.verifiable %}stays{% endif %}">
     <td>
       <input type="hidden" name="id" value="{{ r.id }}">
       <input type="text" name="title-{{ r.id }}" value="{{ r.title }}" aria-label="Title">
@@ -42,11 +42,9 @@
       {% if not r.verifiable and r.unverifiableReason %}<p class="reason">{{ r.unverifiableReason }}</p>{% endif %}
     </td>
     <td><input type="number" name="weight-{{ r.id }}" value="{{ r.weight|int if r.weight == r.weight|int else r.weight }}" min="0" step="0.5" aria-label="Weight"></td>
-    <td class="verify">
+    <td>
       <label class="toggle"><input type="checkbox" name="verifiable-{{ r.id }}" {% if r.verifiable %}checked{% endif %}> RepoMan</label>
-      <div class="who {% if r.proposedBy == 'repoman' %}proposed{% elif not r.verifiable %}stays{% endif %}" style="margin-top:8px">
-        {% if r.proposedBy == 'repoman' %}proposed by RepoMan — edit or accept{% elif not r.verifiable %}stays with you{% else %}from your rubric{% endif %}
-      </div>
+      <div class="who {% if r.proposedBy == 'repoman' %}proposed{% elif not r.verifiable %}stays{% endif %}">{% if r.proposedBy == 'repoman' %}proposed by RepoMan{% elif not r.verifiable %}stays with you{% else %}from your rubric{% endif %}</div>
     </td>
     <td class="del"><label class="del"><input type="checkbox" name="delete-{{ r.id }}">remove</label></td>
   </tr>
@@ -54,7 +52,7 @@
   </tbody>
 </table>
 <div class="approve">
-  <button class="act" type="submit">Approve rubric →</button>
+  <button class="btn" type="submit">Approve rubric →</button>
   <span>Unchecking “RepoMan” keeps a line in the rubric and out of the model. Weights are yours; RepoMan never totals them.</span>
 </div>
 </form>

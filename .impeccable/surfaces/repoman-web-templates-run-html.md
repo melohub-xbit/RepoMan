@@ -2,7 +2,7 @@
 version: 1
 slug: "repoman-web-templates-run-html"
 primary_target: "repoman/web/templates/run.html"
-related_targets: ["repoman/web/templates/batch.html","repoman/web/templates/rubric.html","repoman/web/static/app.css"]
+related_targets: ["repoman/web/templates/batch.html","repoman/web/templates/rubric.html","repoman/web/templates/landing.html","repoman/web/static/app.css"]
 ---
 
 # Evaluator workspace — surface brief
@@ -23,7 +23,7 @@ related_targets: ["repoman/web/templates/batch.html","repoman/web/templates/rubr
 
 THESIS: The evidence is the layout. Every claim on the page runs as typeset copy and carries its check in a ruled margin — mark, locator, quote — so the evaluator reads the finding and its proof in one glance, the way a fact-checker reads a galley. It refuses the category's arrangement: sidebar, table of status pills, detail panel with a summary card and an "AI confidence" bar.
 
-OWN-WORLD: One white bond ground (`#F6F6F3` light / `#141517` dark) that floods the frame; ink `#15171B`; graphite `#6B7078` for marginalia and secondary text; one pencil-blue `#1F5FBF` for every interactive mark and locator; state inks verified `#2E7D4F`, contradicted `#B3261E`, partial `#9A6B00`, unverified graphite, flagged ink — always paired with a glyph (✓ ◐ — ✗ ⚑) and a word. Copy in a screen text serif (Source Serif 4); marks, locators, code and controls in the system mono stack. Hairline rules (1px, graphite at 25%) are the only structure: the margin rule, the queue's row and column rules, the leader from a mark to its opened evidence. No boxes, no fills behind content, no shadows, no radius above 2px. Controls are typographic: small-caps mono words with an underline on hover, a filled pencil-blue rule beneath when active.
+OWN-WORLD (restructured 2026-09-19 after evaluator feedback — bland, unstructured): an app shell (rail of submissions, topbar), contained white cards on a paper desk with soft offset shadows, state as a coloured band at the top of each finding, filled pencil-blue primary buttons, a persistent sticky evidence pane (bottom sheet on phones), labelled counts never bare numbers. The earlier 'enclosure never' raise is withdrawn for Operate surfaces. Retained from the original: One white bond ground (`#F6F6F3` light / `#141517` dark) that floods the frame; ink `#15171B`; graphite `#6B7078` for marginalia and secondary text; one pencil-blue `#1F5FBF` for every interactive mark and locator; state inks verified `#2E7D4F`, contradicted `#B3261E`, partial `#9A6B00`, unverified graphite, flagged ink — always paired with a glyph (✓ ◐ — ✗ ⚑) and a word. Copy in a screen text serif (Source Serif 4); marks, locators, code and controls in the system mono stack. Hairline rules (1px, graphite at 25%) are the only structure: the margin rule, the queue's row and column rules, the leader from a mark to its opened evidence. No boxes, no fills behind content, no shadows, no radius above 2px. Controls are typographic: small-caps mono words with an underline on hover, a filled pencil-blue rule beneath when active.
 
 STORY: The judge arrives at a queue that reads like a proof index — rows ruled, columns fixed, the submissions needing a human first. They open one and see the rubric's requirements as headings over running copy, each with its margin check. They understand within seconds which claims held, which didn't, and where the tool looked; they believe it because every mark is one click from the exact lines; they act by pencilling their own marks into the decision strip and moving to the next row.
 

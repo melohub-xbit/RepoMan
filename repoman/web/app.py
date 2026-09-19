@@ -79,11 +79,15 @@ def load_run(run_id: str) -> dict:
     by_req = {f.requirementId: f for f in findings}
     dec_by_req = {d.requirementId: d for d in decisions}
     flags = sorted({fl for f in findings for fl in f.flagged})
-    claims = [{"req": r, "finding": by_req.get(r.id), "decision": dec_by_req.get(r.id)} for r in reqs]
+    claims = [{"req": r, "finding": by_req.get(r.id), "decision": dec_by_req.get(r.id), "pos": i + 1, "total": len(reqs)}
+              for i, r in enumerate(reqs)]
     verified, verifiable = coverage(findings, reqs)
     scores = [d.score for d in decisions if d.score is not None]
+    tally = {}
+    for f in findings:
+        tally[f.state] = tally.get(f.state, 0) + 1
     return {
-        "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "flags": flags,
+        "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "flags": flags, "tally": tally,
         "probes": store.get_json(p + "probes.json", {}), "status": RunStatus.model_validate(store.get_json(p + "status.json")),
         "verified": verified, "verifiable": verifiable, "decided": len(dec_by_req),
         "total_marks": sum(scores) if scores else None, "total_weight": sum(r.weight for r in reqs),
@@ -106,6 +110,10 @@ def queue_rows(batch: Batch, rubric: Rubric | None) -> list[dict]:
 
 
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
+    # every app page inside a batch gets the rail: the batch's submissions and where you are
+    batch = ctx.get("batch")
+    if batch is not None and "rail_rows" not in ctx:
+        ctx["rail_rows"] = ctx.get("rows") or queue_rows(batch, ctx.get("rubric") or load_rubric(batch))
     return tpl.TemplateResponse(request, name, ctx)
 
 
@@ -231,7 +239,7 @@ def run_page(request: Request, run_id: str):
 @app.get("/runs/{run_id}/status", response_class=HTMLResponse)
 def run_status(request: Request, run_id: str):
     r = load_run(run_id)
-    resp = render(request, "_row.html", r=r)
+    resp = tpl.TemplateResponse(request, "_row.html", {"r": r})
     if r["status"].stage in ("done", "failed"):
         resp.headers["HX-Trigger"] = "run-finished"
     return resp
@@ -263,7 +271,7 @@ def evidence(request: Request, run_id: str, ev_id: str):
         text = pages.get(str(loc.page))
         if text is not None:  # escape first: submission text is hostile input
             body = Markup(str(escape(text)).replace(str(escape(ev.quote)), f"<mark>{escape(ev.quote)}</mark>"))
-    return render(request, "_evidence.html", ev=ev, body=body, sub=r["sub"])
+    return tpl.TemplateResponse(request, "_evidence.html", {"ev": ev, "body": body, "sub": r["sub"]})
 
 
 @app.post("/runs/{run_id}/decisions", response_class=HTMLResponse)
@@ -285,14 +293,15 @@ def decide(request: Request, run_id: str, requirement_id: str = Form(...), actio
         store.put_json(key, ps)
     r = load_run(run_id)
     claim = next(c for c in r["claims"] if c["req"].id == requirement_id)
-    resp = render(request, "_claim.html", c=claim, **r)
+    resp = tpl.TemplateResponse(request, "_claim.html", {"c": claim, **r})
     resp.headers["HX-Trigger-After-Swap"] = "decided"
     return resp
 
 
-@app.get("/runs/{run_id}/masthead", response_class=HTMLResponse)
-def masthead(request: Request, run_id: str):
-    return render(request, "_masthead.html", **load_run(run_id))
+@app.get("/runs/{run_id}/facts", response_class=HTMLResponse)
+def facts(request: Request, run_id: str):
+    r = load_run(run_id)
+    return tpl.TemplateResponse(request, "_facts.html", r)
 
 
 # --- exports ------------------------------------------------------------------
