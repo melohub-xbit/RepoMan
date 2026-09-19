@@ -66,8 +66,10 @@ def run_probes(repo: Path, sub: Submission, *, pages: dict[str, str] | None = No
     # step 2). Detection is defence in depth; this exclusion is what it buys.
     inj = report.results["injection"]
     report.quarantined = {ev.locator.path for ev in inj.evidence if ev.locator.kind == "file_range"}
+    if any(ev.locator.kind == "doc_span" for ev in inj.evidence):
+        report.quarantined.add("report")  # the whole PDF: a payload on one page poisons the document
     for artifact in sub.artifacts:
-        if artifact.uri in report.quarantined:
+        if artifact.uri in report.quarantined or (artifact.kind == "report" and "report" in report.quarantined):
             artifact.quarantined = True
 
     return report

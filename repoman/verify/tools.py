@@ -12,6 +12,8 @@ Three properties are not negotiable:
   as instruction, and the system prompt tells it to report anything that tries to be one.
 - **Caps are enforced here, not requested in the prompt.** Truncation is always visible in the
   result, so the finding can honestly record how far the search got.
+- **Every file, page and probe result passes through the Cedar policy** in `policy.cedar` before
+  it is read. Quarantine, path escape and vendored trees are denials by policy, not by luck.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from pathlib import Path
 from strands import tool
 
 from repoman.probes import VENDORED, read_text
+from repoman.verify.policy import allowed
 
 TREE_ENTRIES = 400
 GREP_MATCHES = 60
@@ -51,6 +54,7 @@ class ToolBox:
     cap: int = 12
     calls: int = 0
     read_paths: list[str] = field(default_factory=list)
+    denied: list[str] = field(default_factory=list)  # "action resource" for every request the policy refused
 
     def __post_init__(self) -> None:
         # Resolve once so every path comparison below is between absolute paths.
@@ -67,26 +71,28 @@ class ToolBox:
                     "record that the search was cut short.")
         return None
 
-    def _safe(self, rel_path: str) -> Path | None:
-        """A path inside the checkout that is not quarantined, or None."""
+    def _permit(self, action: str, p: Path) -> bool:
+        """Ask the policy about one file. Every attribute Cedar sees is computed here from the path."""
+        inside = p == self.root or self.root in p.parents
+        rel = self._rel(p) if inside else str(p)
+        parts = set(p.relative_to(self.root).parts) if inside else set()
+        ok = allowed(action, "File", rel, inside_checkout=inside, quarantined=rel in self.quarantined,
+                     vendored=bool(parts & VENDORED) or any(x.startswith(".git") for x in parts))
+        if not ok:
+            self.denied.append(f"{action} {rel}")
+        return ok
+
+    def _safe(self, rel_path: str, action: str) -> Path | None:
+        """A path the policy lets `action` touch, or None."""
         rel_path = (rel_path or "").strip().lstrip("/\\")
         try:
             p = (self.root / rel_path).resolve()
         except (OSError, ValueError):
             return None
-        if p != self.root and self.root not in p.parents:
-            return None
-        if self._is_quarantined(p):
-            return None
-        return p
+        return p if self._permit(action, p) else None
 
-    def _is_quarantined(self, p: Path) -> bool:
-        try:
-            return str(p.relative_to(self.root)).replace("\\", "/") in self.quarantined
-        except ValueError:
-            return False
-
-    def _files(self):
+    def _files(self, action: str):
+        """Every file under the root that the policy lets `action` read. Vendored trees are not descended."""
         stack = [self.root]
         while stack:
             current = stack.pop()
@@ -98,7 +104,7 @@ class ToolBox:
                 if p.is_dir():
                     if p.name not in VENDORED and not p.name.startswith(".git"):
                         stack.append(p)
-                elif not self._is_quarantined(p):
+                elif self._permit(action, p):
                     yield p
 
     def _rel(self, p: Path) -> str:
@@ -122,11 +128,11 @@ class ToolBox:
             spent = self._spend()
             if spent:
                 return spent
-            base = self._safe(path)
+            base = self._safe(path, "tree")
             if base is None or not base.is_dir():
                 return untrusted("tree", f"No directory {path!r} in this submission.")
             rows, truncated = [], False
-            for i, p in enumerate(sorted(self._files(), key=self._rel)):
+            for i, p in enumerate(sorted(self._files("tree"), key=self._rel)):
                 if not str(p).startswith(str(base)):
                     continue
                 if len(rows) >= TREE_ENTRIES:
@@ -157,7 +163,7 @@ class ToolBox:
             except re.error as e:
                 return untrusted("grep", f"Not a valid regular expression: {e}")
             out, truncated = [], False
-            for p in self._files():
+            for p in self._files("grep"):
                 rel = self._rel(p)
                 if glob not in ("", "*", "**/*") and not (fnmatch.fnmatch(rel, glob) or fnmatch.fnmatch(p.name, glob)):
                     continue
@@ -189,7 +195,7 @@ class ToolBox:
             spent = self._spend()
             if spent:
                 return spent
-            p = self._safe(path)
+            p = self._safe(path, "read_file")
             if p is None or not p.is_file():
                 where = "withheld: it carried a prompt-injection payload" if p is None and path in self.quarantined \
                     else "not found in this submission"
@@ -218,6 +224,9 @@ class ToolBox:
                 return spent
             if not self.pages:
                 return untrusted("report", "No report or deck was submitted.")
+            if not allowed("read_report_page", "Report", str(page), quarantined="report" in self.quarantined):
+                self.denied.append(f"read_report_page {page}")
+                return untrusted("report", "The report is quarantined and cannot be read.")
             text = self.pages.get(str(page))
             if text is None:
                 return untrusted("report", f"The report has pages 1–{len(self.pages)}; there is no page {page}.")
@@ -229,7 +238,7 @@ class ToolBox:
             spent = self._spend()
             if spent:
                 return spent
-            manifests = [p for p in self._files()
+            manifests = [p for p in self._files("list_deps")
                          if p.name in ("pom.xml", "package.json", "pyproject.toml", "requirements.txt",
                                        "go.mod", "build.gradle", "build.gradle.kts", "Cargo.toml", "Gemfile")]
             if not manifests:

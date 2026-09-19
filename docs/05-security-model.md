@@ -69,6 +69,14 @@ tool that takes a URL, writes a file, or spawns a process.
 This is why `repoman/probes` may not import `repoman/verify`. The dependency
 direction is a security control.
 
+**The boundary is a Cedar policy, evaluated per call.** `repoman/verify/policy.cedar`
+permits the six read-only actions on files inside the checkout and outside vendored
+trees, permits report pages and probe output, and forbids anything quarantined and
+the actions `fetch`, `write` and `exec` outright. `ToolBox` asks the policy for every
+file, page and probe result before reading it (`verify/policy.py`, `cedarpy`), and
+records each denial. Changing what the agent may touch is a change to that file,
+reviewed as such — not a prompt edit.
+
 ### 3. v1 executes no submitted code. When it does, only in a sandbox.
 
 v1 never runs a build, a test suite, or an install from a submission. Probes are
