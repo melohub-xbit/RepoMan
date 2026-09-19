@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.name }} · RepoMan{% endblock %}
+{% block crumbs %}<span class="crumb" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</span>{% endblock %}
+{% block facts %}
+  <span class="fact"><b>{{ rows|length }}</b> submission{{ '' if rows|length == 1 else 's' }}</span>
+  {% if rubric %}<a class="fact" href="/batches/{{ batch.id }}/rubric">rubric v{{ rubric.version }} · {{ rubric.requirements|selectattr('verifiable')|list|length }} checked</a>{% endif %}
+  {% if rows %}<a class="fact" href="/batches/{{ batch.id }}/export.csv">export csv</a>{% endif %}
+{% endblock %}
+{% block body %}
+<div class="title">
+  <h1>{{ batch.name }}</h1>
+  <p class="sub">Ordered by where a human is needed: flagged, then contradicted, then least evidence. Running rows fill in as the investigation proceeds.</p>
+</div>
+
+{% if not rubric %}
+<p class="empty"><b>No rubric yet.</b> <a href="/batches/{{ batch.id }}/rubric">Paste and approve one</a> before adding submissions — findings are only as good as the requirements they answer.</p>
+{% elif not rows %}
+<p class="empty"><b>Nothing submitted.</b> Add a GitHub URL below; a report PDF and a deployed URL make the findings richer.</p>
+{% else %}
+<table class="queue">
+  <thead><tr>
+    <th>Submission</th><th>Evidence</th><th class="hide-sm">Findings</th><th class="hide-sm">Flags</th><th>Decided</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}{% include "_row.html" %}{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if precedents %}
+<section class="intake" style="margin-top:40px">
+  <h2>Precedents in this batch</h2>
+  <ul class="checks" style="grid-column:1">
+    {% for p in precedents %}<li class="check"><div class="loc"><span>{{ p.rule }}</span></div><div class="quote">applies to runs after {{ p.appliesFrom[:16].replace('T',' ') }}</div></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if rubric %}
+<section class="intake">
+  <h2>Add submissions</h2>
+  <form method="post" action="/batches/{{ batch.id }}/submissions" enctype="multipart/form-data">
+    <label class="field"><span>GitHub repository URL</span><input name="repo_url" placeholder="https://github.com/team/project" autocomplete="off"></label>
+    <div class="row">
+      <label class="field"><span>Report or deck · PDF</span><input name="report" type="file" accept="application/pdf"></label>
+      <label class="field"><span>Deployed URL</span><input name="deploy_url" placeholder="https://project.example.app" autocomplete="off"></label>
+    </div>
+    <details>
+      <summary class="act quiet" style="display:inline-block">+ many at once</summary>
+      <label class="field" style="margin-top:12px"><span>One GitHub URL per line</span><textarea name="urls" rows="4"></textarea></label>
+    </details>
+    <div class="actions"><button class="act" type="submit">Investigate →</button></div>
+  </form>
+  <aside class="aside">
+    <p>The repository is cloned at its current commit and every citation is pinned to that commit, so links keep working after a force-push.</p>
+    <p>Nothing in the submission is executed.</p>
+  </aside>
+</section>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+  // a finished row re-sorts the queue: reload once, quietly, when the last running row finishes
+  document.body.addEventListener('run-finished', () => {
+    if (!document.querySelector('.stage.running')) setTimeout(() => location.reload(), 600);
+  });
+</script>
+{% endblock %}

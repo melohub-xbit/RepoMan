@@ -1,0 +1,23 @@
+{
+  "artifactShas": {},
+  "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+  "finishedAt": "2026-09-18T14:05:40Z",
+  "id": "run_sample",
+  "mismatches": 0,
+  "modelId": "fixture",
+  "probeVersions": {},
+  "promptHashes": {},
+  "rubricId": "r_cs402",
+  "rubricVersion": 1,
+  "startedAt": "2026-09-19T09:24:01+00:00",
+  "submissionId": "s_taskflow",
+  "usage": [
+    {
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "inputTokens": 412000,
+      "outputTokens": 9300,
+      "pass": "verify"
+    }
+  ]
+}

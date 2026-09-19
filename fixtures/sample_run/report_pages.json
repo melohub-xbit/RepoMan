@@ -1,0 +1,7 @@
+{
+  "1": "TaskFlow \u2014 Final Project Report\nTeam 7 \u00b7 CS402 \u00b7 Fall 2026\n\nAbstract\nTaskFlow is a task management API with JWT authentication, full role-based access control, Redis caching and a comprehensive automated test suite.",
+  "11": "6. Performance\nRead-heavy endpoints such as GET /api/tasks are served from Redis with a 60-second TTL, which reduced p95 latency by 70% in our load tests.",
+  "14": "8. Testing\nWe wrote a comprehensive test suite covering authentication, authorization and task lifecycle, with over 40 test cases executed on every commit.",
+  "4": "3. Authentication\nUsers authenticate with email and password at POST /auth/login and receive a signed JWT. Every request to /api/** passes through JwtFilter, which validates the signature and expiry before the controller runs.",
+  "9": "5. Authorization\nWe implemented full RBAC across all five user tiers: guest, member, lead, admin and owner. Each controller method is annotated with the roles permitted to call it, so an unprivileged caller cannot reach administrative operations."
+}

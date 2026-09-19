@@ -5,3 +5,6 @@ data/
 .env
 *.egg-info/
 .pytest_cache/
+.impeccable/review/
+.impeccable/mocks/
+.playwright-mcp/

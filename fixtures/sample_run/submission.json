@@ -1,0 +1,43 @@
+{
+  "acquiredAt": "2026-09-19T09:24:01+00:00",
+  "artifacts": [
+    {
+      "id": "a_repo",
+      "kind": "repo",
+      "quarantined": false,
+      "sha256": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+      "submissionId": "s_taskflow",
+      "uri": "https://github.com/repoman-fixtures/taskflow-springboot"
+    },
+    {
+      "id": "a_readme",
+      "kind": "readme",
+      "quarantined": false,
+      "sha256": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+      "submissionId": "s_taskflow",
+      "uri": "https://github.com/repoman-fixtures/taskflow-springboot/blob/main/README.md"
+    },
+    {
+      "id": "a_report",
+      "kind": "report",
+      "quarantined": false,
+      "sha256": "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
+      "submissionId": "s_taskflow",
+      "uri": "report.pdf"
+    },
+    {
+      "id": "a_deploy",
+      "kind": "deploy",
+      "quarantined": false,
+      "sha256": null,
+      "submissionId": "s_taskflow",
+      "uri": "https://taskflow-demo.example.app"
+    }
+  ],
+  "batchId": "b_cs402",
+  "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+  "id": "s_taskflow",
+  "identity": null,
+  "repoUrl": "https://github.com/repoman-fixtures/taskflow-springboot",
+  "source": "github"
+}

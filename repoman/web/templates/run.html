@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ (sub.repoUrl or run_id)|replace('https://github.com/','') }} · RepoMan{% endblock %}
+{% block crumbs %}
+  <a class="crumb" href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a>
+  <span class="crumb" style="view-transition-name: sub-{{ run_id }}">{{ (sub.repoUrl or run_id)|replace('https://github.com/','') }}</span>
+{% endblock %}
+{% block facts %}<span id="masthead-facts" hx-get="/runs/{{ run_id }}/masthead" hx-trigger="decided from:body" hx-swap="innerHTML">{% include "_masthead.html" %}</span>{% endblock %}
+{% block body %}
+<div class="title">
+  <h1>{{ (sub.repoUrl or run_id)|replace('https://github.com/','') }}</h1>
+  <p class="sub">
+    {% if sub.repoUrl %}<a href="{{ sub.repoUrl }}/tree/{{ sub.commitSha }}" target="_blank" rel="noopener">at {{ sub.commitSha[:10] }}</a>{% endif %}
+    {% if probes.get('deploy') %} · {{ probes.deploy.summary }}{% endif %}
+    {% if manifest.finishedAt %} · investigated {{ manifest.finishedAt[:16].replace('T', ' ') }}{% endif %}
+  </p>
+</div>
+
+{% if flags %}
+<div class="flags" role="note">
+  {% for f in flags %}<span class="state">{{ mark('FLAGGED') }}{{ f|lower|replace('_',' ') }}</span>{% endfor %}
+  {% set gitflags = flags|select('in', ['CONTRIBUTION_SKEW', 'TIMELINE_ANOMALY'])|list %}
+  {% if gitflags %}<span class="why">{{ probes.get('git', {}).get('summary', '') }}</span>{% endif %}
+  {% if 'PROMPT_INJECTION' in flags %}<span class="why">{{ probes.get('injection', {}).get('summary', '') }}</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="galley" id="galley">
+  {% for c in claims %}{% include "_claim.html" %}{% endfor %}
+</div>
+{% endblock %}
+{% block footright %}<a href="/runs/{{ run_id }}/packet.md">evidence packet</a>{% endblock %}
+{% block script %}
+<script>
+  // a margin mark opens its source under the claim; the leader is drawn from that mark
+  function openCheck(btn) {
+    const check = btn.closest('.check'), claim = btn.closest('.claim'), proof = claim.querySelector('.proof');
+    claim.querySelectorAll('.check').forEach(x => x.classList.remove('is-open'));
+    check.classList.add('is-open');
+    const h = proof.getBoundingClientRect().top - check.getBoundingClientRect().top - 2;
+    proof.style.setProperty('--leader-h', Math.max(0, h) + 'px');
+  }
+  function closeProof(btn) {
+    const proof = btn.closest('.proof'); proof.innerHTML = ''; proof.style.display = 'none';
+    proof.closest('.claim').querySelectorAll('.check').forEach(x => x.classList.remove('is-open'));
+  }
+  // time to decision: from first interaction on a claim to the last decision; shown in the masthead
+  const key = 'ttd-{{ run_id }}';
+  document.addEventListener('focusin', e => { if (e.target.closest('.claim') && !localStorage.getItem(key)) localStorage.setItem(key, Date.now()); }, { once: false });
+  document.body.addEventListener('htmx:afterSwap', e => {
+    if (e.detail.target.classList?.contains('claim')) {
+      const d = e.detail.target.querySelector('.decision .done');
+      if (d) d.querySelector('.tick')?.classList.add('tick');
+    }
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-override]'); if (!b) return;
+    b.closest('.decision').classList.toggle('overriding');
+    b.setAttribute('aria-pressed', b.closest('.decision').classList.contains('overriding'));
+    b.closest('form').querySelector('input[name=action]').value = b.getAttribute('aria-pressed') === 'true' ? 'override' : 'accept';
+  });
+</script>
+{% endblock %}

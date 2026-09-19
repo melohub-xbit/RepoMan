@@ -1,0 +1,13 @@
+{
+  "createdAt": "2026-09-19T09:24:01+00:00",
+  "eventWindow": [
+    "2026-08-24",
+    "2026-09-14"
+  ],
+  "id": "b_cs402",
+  "name": "CS402 Final Projects \u00b7 Fall 2026",
+  "rubricId": "r_cs402",
+  "runIds": [
+    "run_sample"
+  ]
+}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="title">
+  <h1>Batches</h1>
+  <p class="sub">A batch is one rubric applied to many submissions.</p>
+</div>
+{% if batches %}
+<ul class="batches">
+  {% for b in batches %}
+  <li>
+    <a href="/batches/{{ b.id }}" style="view-transition-name: batch-{{ b.id }}">{{ b.name }}</a>
+    <span class="meta">{{ b.runIds|length }} submission{{ '' if b.runIds|length == 1 else 's' }}{% if b.eventWindow %} · {{ b.eventWindow[0] }} → {{ b.eventWindow[1] }}{% endif %}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty"><b>No batches yet.</b> Start one below: name it, then paste the rubric. Submissions come after the rubric is approved.</p>
+{% endif %}
+
+<section class="intake">
+  <h2>New batch</h2>
+  <form method="post" action="/batches">
+    <label class="field"><span>Name</span><input name="name" required placeholder="CS402 Final Projects · Fall 2026" autocomplete="off"></label>
+    <div class="row">
+      <label class="field"><span>Event window · start</span><input name="start" type="date"></label>
+      <label class="field"><span>Event window · end</span><input name="end" type="date"></label>
+    </div>
+    <div class="actions"><button class="act" type="submit">Create and compile rubric →</button></div>
+  </form>
+  <aside class="aside">
+    <p>The event window lets the git probe say how much of a submission predates the assignment.</p>
+    <p>Optional. Leave it empty for take-homes.</p>
+  </aside>
+</section>
+{% endblock %}

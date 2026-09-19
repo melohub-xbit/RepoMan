@@ -1,0 +1,92 @@
+{
+  "compiledBy": "fixture",
+  "id": "r_cs402",
+  "requirements": [
+    {
+      "id": "q1",
+      "proposedBy": "evaluator",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 84,
+        "startChar": 49
+      },
+      "statement": "JWT tokens are issued on login and validated on every protected route.",
+      "title": "JWT authentication",
+      "unverifiableReason": null,
+      "verifiable": true,
+      "weight": 15.0
+    },
+    {
+      "id": "q2",
+      "proposedBy": "evaluator",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 133,
+        "startChar": 85
+      },
+      "statement": "At least two roles exist and endpoints are restricted by role.",
+      "title": "Role-based authorization",
+      "unverifiableReason": null,
+      "verifiable": true,
+      "weight": 15.0
+    },
+    {
+      "id": "q3",
+      "proposedBy": "evaluator",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 185,
+        "startChar": 134
+      },
+      "statement": "A cache (Redis or similar) is configured and actually used by at least one read-heavy endpoint.",
+      "title": "Caching layer",
+      "unverifiableReason": null,
+      "verifiable": true,
+      "weight": 10.0
+    },
+    {
+      "id": "q4",
+      "proposedBy": "evaluator",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 237,
+        "startChar": 186
+      },
+      "statement": "Automated tests exist, run under a framework, and exercise core logic rather than only the application context.",
+      "title": "Automated tests",
+      "unverifiableReason": null,
+      "verifiable": true,
+      "weight": 20.0
+    },
+    {
+      "id": "q5a",
+      "proposedBy": "repoman",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 274,
+        "startChar": 238
+      },
+      "statement": "Consistent structure, no dead code, errors handled at boundaries.",
+      "title": "Code quality",
+      "unverifiableReason": null,
+      "verifiable": true,
+      "weight": 20.0
+    },
+    {
+      "id": "q5b",
+      "proposedBy": "repoman",
+      "rubricId": "r_cs402",
+      "sourceSpan": {
+        "endChar": 274,
+        "startChar": 238
+      },
+      "statement": "Creativity and originality of the solution.",
+      "title": "Creativity",
+      "unverifiableReason": "Not locatable in code, report or deployment; this criterion stays with the evaluator.",
+      "verifiable": false,
+      "weight": 20.0
+    }
+  ],
+  "sourceText": "CS402 Final Project \u2014 Web Application Security\n1. Authentication with JWT \u2014 15 marks\n2. Role-based authorization (admin/user) \u2014 15 marks\n3. Caching layer for read-heavy endpoints \u2014 10 marks\n4. Automated tests with meaningful coverage \u2014 20 marks\n5. Code quality and creativity \u2014 40 marks\n",
+  "version": 1
+}

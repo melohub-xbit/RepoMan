@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="view-transition" content="same-origin">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}RepoMan{% endblock %}</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js" defer></script>
+</head>
+<body hx-boost="false">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="m-VERIFIED" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4"/></symbol>
+  <symbol id="m-PARTIAL" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="m-UNVERIFIED" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+  <symbol id="m-CONTRADICTED" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+  <symbol id="m-FLAGGED" viewBox="0 0 16 16"><path d="M4 2v12M4 2.5h8l-2 3 2 3H4"/></symbol>
+  <symbol id="m-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" stroke-dasharray="2 2.5"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 16 16"><path d="M6.5 3H3v10h10V9.5M9 3h4v4M13 3 7 9"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 16 16"><path d="M2.5 9 6 12.5 13.5 4"/></symbol>
+</svg>
+<div class="sheet">
+  <header class="masthead">
+    <a class="wordmark" href="/" style="color:inherit">RepoMan</a>
+    {% block crumbs %}{% endblock %}
+    <span class="spacer"></span>
+    {% block facts %}{% endblock %}
+  </header>
+  {% block body %}{% endblock %}
+  <footer class="foot">
+    <span class="thesis">RepoMan does not judge people's work. It does the investigation a human needs before they can.</span>
+    <span class="spacer" style="flex:1"></span>
+    <span>{% block footright %}{% endblock %}</span>
+  </footer>
+</div>
+{% block script %}{% endblock %}
+</body>
+</html>

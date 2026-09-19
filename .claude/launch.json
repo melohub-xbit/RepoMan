@@ -1,0 +1,1 @@
+{ "version": "0.0.1", "configurations": [ { "name": "repoman-web", "runtimeExecutable": "uv", "runtimeArgs": ["run", "uvicorn", "repoman.web.app:app", "--port", "8765", "--reload"], "port": 8765 } ] }

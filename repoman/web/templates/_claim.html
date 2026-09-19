@@ -1,0 +1,62 @@
+{% set req = c.req %}{% set f = c.finding %}{% set d = c.decision %}
+<section class="claim {% if not req.verifiable %}unverifiable{% endif %}" id="claim-{{ req.id }}">
+  <div class="copy">
+    <h2>{{ req.title }}</h2>
+    <p class="statement">{{ req.statement }}</p>
+    {% if not req.verifiable %}
+      <p class="summary">Not checked — yours. {{ req.unverifiableReason }}</p>
+    {% elif f %}
+      <p class="summary">{{ f.summary }}</p>
+      <p class="confidence"><b>{{ f.confidence }} confidence</b> — {{ f.confidenceReason }}{% if f.searchExhausted %} Search stopped at the tool-call cap.{% endif %}</p>
+      {% if f.questions %}
+      <details class="questions"><summary>Ask the team</summary><ol>{% for q in f.questions %}<li>{{ q }}</li>{% endfor %}</ol></details>
+      {% endif %}
+    {% else %}
+      <p class="summary" style="color:var(--graphite)">No finding was produced for this requirement.</p>
+    {% endif %}
+  </div>
+
+  <aside class="margin">
+    <ul class="checks">
+      <li class="head">
+        {% if not req.verifiable %}<span class="state state-none">{{ mark('none') }}stays with you</span>
+        {% elif f %}{{ statechip(f.state) }}{% else %}<span class="state state-none">{{ mark('none') }}no finding</span>{% endif %}
+        <span class="weight">{{ req.weight|int if req.weight == req.weight|int else req.weight }} marks</span>
+      </li>
+      {% if f %}{% for e in f.evidence %}
+      <li class="check" id="check-{{ e.id }}">
+        <div class="loc">
+          <button class="act" type="button"
+                  hx-get="/runs/{{ run_id }}/evidence/{{ e.id }}" hx-target="#proof-{{ req.id }}" hx-swap="innerHTML"
+                  hx-on::after-request="openCheck(this)"
+                  aria-controls="proof-{{ req.id }}" title="{{ e.locator.path if e.locator.kind == 'file_range' else '' }}">{{ locator_text(e.locator) }}</button>
+          <span class="prov {{ e.provenance }}">{{ e.provenance }}</span>
+          {% if e.locator.kind == 'file_range' and sub.repoUrl %}<a class="ext" href="{{ permalink(e.locator, sub) }}" target="_blank" rel="noopener" title="Open on GitHub"><svg class="mark" aria-hidden="true"><use href="#i-ext"/></svg></a>
+          {% elif e.locator.kind == 'http_capture' %}<a class="ext" href="{{ e.locator.url }}" target="_blank" rel="noopener" title="Open"><svg class="mark" aria-hidden="true"><use href="#i-ext"/></svg></a>{% endif %}
+        </div>
+        <div class="quote">{{ e.quote|short(160) }}</div>
+      </li>
+      {% endfor %}{% endif %}
+    </ul>
+  </aside>
+
+  <div class="proof" id="proof-{{ req.id }}" hx-on::after-swap="this.style.display = this.innerHTML.trim() ? '' : 'none'" style="display:none"></div>
+
+  {% if d %}
+  <div class="decision">
+    <span class="done"><svg class="mark tick" aria-hidden="true"><use href="#i-tick"/></svg>
+      {{ 'overridden' if d.overrodeFindingId else 'accepted' }}
+      {% if d.score is not none %}· <b>{{ d.score|int if d.score == d.score|int else d.score }}</b> / {{ req.weight|int }}{% endif %}
+      {% if d.note %}· <span style="font-family:var(--serif);font-size:15px">{{ d.note }}</span>{% endif %}
+    </span>
+    <form hx-post="/runs/{{ run_id }}/decisions" hx-target="#claim-{{ req.id }}" hx-swap="outerHTML" style="margin-left:auto">
+      <input type="hidden" name="requirement_id" value="{{ req.id }}"><input type="hidden" name="action" value="{{ 'override' if d.overrodeFindingId else 'accept' }}">
+      <input type="hidden" name="score" value="{{ d.score if d.score is not none else '' }}"><input type="hidden" name="note" value="{{ d.note }}">
+      <button class="act quiet" type="button" onclick="this.closest('.claim').querySelector('.decision').outerHTML = document.getElementById('tpl-{{ req.id }}').innerHTML">change</button>
+    </form>
+  </div>
+  <template id="tpl-{{ req.id }}">{% include "_decide.html" %}</template>
+  {% else %}
+  {% include "_decide.html" %}
+  {% endif %}
+</section>

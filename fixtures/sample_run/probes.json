@@ -1,0 +1,85 @@
+{
+  "deploy": {
+    "evidence": [
+      {
+        "id": "cf7a6a3e989b",
+        "locator": {
+          "capturedAt": "2026-09-18T14:02:11Z",
+          "kind": "http_capture",
+          "status": 200,
+          "title": "TaskFlow",
+          "url": "https://taskflow-demo.example.app"
+        },
+        "probeId": "deploy",
+        "provenance": "probe",
+        "quote": "<title>TaskFlow</title>",
+        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "submissionId": "s_taskflow"
+      }
+    ],
+    "summary": "https://taskflow-demo.example.app \u00b7 200 \u00b7 \"TaskFlow\" \u00b7 2026-09-18T14:02:11Z"
+  },
+  "deps": {
+    "evidence": [
+      {
+        "id": "9b615dce44c6",
+        "locator": {
+          "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+          "endLine": 51,
+          "kind": "file_range",
+          "path": "pom.xml",
+          "startLine": 48
+        },
+        "probeId": "deps",
+        "provenance": "probe",
+        "quote": "<artifactId>spring-boot-starter-data-redis</artifactId>",
+        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "submissionId": "s_taskflow"
+      }
+    ],
+    "summary": "Declared 14 dependencies; 1 never imported (spring-boot-starter-data-redis)."
+  },
+  "git": {
+    "evidence": [
+      {
+        "id": "070083f99602",
+        "locator": {
+          "authorHash": "7a1f3c9e2b44",
+          "commitSha": "e41b7c2d9a0f",
+          "committedAt": "2026-09-14T21:47:03Z",
+          "kind": "git_object"
+        },
+        "probeId": "git",
+        "provenance": "probe",
+        "quote": "feat: add everything (+4,812 \u2212120)",
+        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "submissionId": "s_taskflow"
+      }
+    ],
+    "summary": "47 commits \u00b7 3 authors \u00b7 82% of lines by one author \u00b7 61% of commits in the 6 h before the deadline."
+  },
+  "injection": {
+    "evidence": [],
+    "summary": "No instruction-shaped text found in README, comments or report."
+  },
+  "tests": {
+    "evidence": [
+      {
+        "id": "118e02e357f4",
+        "locator": {
+          "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+          "endLine": 16,
+          "kind": "file_range",
+          "path": "src/test/java/app/TaskflowApplicationTests.java",
+          "startLine": 12
+        },
+        "probeId": "tests",
+        "provenance": "probe",
+        "quote": "@Test\n    void contextLoads() {\n    }",
+        "resolvedAt": "2026-09-19T09:24:01+00:00",
+        "submissionId": "s_taskflow"
+      }
+    ],
+    "summary": "JUnit 5 \u00b7 3 files \u00b7 14 tests \u00b7 11 context/smoke."
+  }
+}
