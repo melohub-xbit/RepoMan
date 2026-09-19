@@ -59,6 +59,7 @@ Read the doc that covers your task before writing code. They are short.
 | [`docs/05-security-model.md`](docs/05-security-model.md) | You are handling submitted content or executing submitted code |
 | [`docs/06-build-plan.md`](docs/06-build-plan.md) | You want to know what is in scope right now |
 | [`docs/07-open-questions.md`](docs/07-open-questions.md) | You hit an unresolved design decision |
+| [`docs/10-test-corpus.md`](docs/10-test-corpus.md) | You want to test against a real hackathon's rubric and winners |
 
 ## Repository layout
 
