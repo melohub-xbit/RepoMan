@@ -80,3 +80,32 @@ def test_batch_option_controls_the_pass(client):
     r = c.post("/batches", data={"name": "Claims", "claims": "on"}, follow_redirects=False)
     bid = r.headers["location"].split("/")[2]
     assert Batch.model_validate(store.get_json(f"batches/{bid}.json")).checkClaims is True
+
+
+def test_batch_page_counts_the_cohort(client):
+    """Two done runs: the batch page says how many verified each requirement and which claims failed."""
+    c, store = client
+    from repoman.core.types import Batch, RunStatus, Submission
+
+    # second submission: same rubric, tests VERIFIED, one claim that did not hold
+    findings = store.get_json("runs/run1/findings.json")
+    second = [{**findings[0], "id": "f9", "submissionId": "run2", "state": "VERIFIED"},
+              {**findings[0], "id": "f10", "submissionId": "run2", "requirementId": "c9", "subject": "claim",
+               "state": "CONTRADICTED", "summary": "Says five roles; two exist."}]
+    claim = Claim(id="c9", submissionId="run2", statement="Five user roles are enforced.",
+                  source=Evidence(id="src9", submissionId="run2", provenance="model", quote=README_LINE,
+                                  locator=FileRange(path="README.md", startLine=3, endLine=3, commitSha=SHA)))
+    store.put_json("runs/run2/submission.json", Submission(id="run2", batchId="b1", source="github",
+                                                            repoUrl="https://github.com/team/other", commitSha=SHA))
+    store.put_json("runs/run2/findings.json", second)
+    store.put_json("runs/run2/claims.json", [claim])
+    store.put_json("runs/run2/decisions.json", [])
+    store.put_json("runs/run2/status.json", RunStatus(stage="done", done=1, total=1))
+    store.put_json("runs/run2/probes.json", {})
+    b = Batch.model_validate(store.get_json("batches/b1.json")); b.runIds.append("run2")
+    store.put_json("batches/b1.json", b)
+
+    page = c.get("/batches/b1").text
+    assert "Across the batch" in page and "1 of 2 partial" in page  # run1 PARTIAL, run2 VERIFIED
+    assert "0 of 1" in page and "Five user roles are enforced." in page
+    assert "#said-c9" in page

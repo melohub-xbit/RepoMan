@@ -45,6 +45,37 @@
 </div></div>
 {% endif %}
 
+{% if cohort %}
+<div class="section"><span class="k">Across the batch<span class="why">{{ cohort.n }} submissions investigated · counts, not grades</span></span>
+<div class="card">
+  <table class="cohort">
+    <tbody>
+    {% for row in cohort.per_req %}
+    <tr>
+      <th scope="row">{{ row.req.title }}</th>
+      <td class="bar"><span class="stack" role="img" aria-label="{% for st, share in row.segments %}{{ row.counts[st] }} {{ st|lower }}{% if not loop.last %}, {% endif %}{% endfor %}">{% for st, share in row.segments %}{% if share %}<i class="seg-{{ st }}" style="--w:{{ share }}" title="{{ row.counts[st] }} {{ st|lower }}"></i>{% endif %}{% endfor %}</span></td>
+      <td class="so">{{ row.so_what }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if cohort.claims_total %}
+  <div class="claims-cohort">
+    <p class="lead"><b>{{ cohort.claims_held }} of {{ cohort.claims_total }}</b> things submissions said about themselves held up when checked against their code.</p>
+    {% if cohort.claims_failed %}
+    <ul class="failed">
+      {% for x in cohort.claims_failed %}
+      <li><span class="state state-{{ x.state }}">{{ mark(x.state) }}{{ 'looked · not found' if x.state == 'UNVERIFIED' else x.state|lower }}</span>
+          <a href="/runs/{{ x.run.run_id }}#said-{{ x.claim.id }}">{{ (x.run.sub.repoUrl or x.run.run_id)|replace('https://github.com/','') }}</a>
+          <span class="why">“{{ x.claim.statement }}”</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+</div></div>
+{% endif %}
+
 <div class="section"><span class="k">Queue<span class="why">ordered by where a human is needed: flagged, then contradicted, then least evidence</span></span>
 <div class="card">
 <table class="queue">

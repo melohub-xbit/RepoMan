@@ -518,3 +518,20 @@ html.js .reveal:not(.in) { opacity: 0; transform: translateY(10px); }
 .claim.said h2 { font-size: 17px; }
 .claim.said .cite.source { margin: 8px 0 12px; }
 .claim.said .prov.model::after { content: none; }
+
+/* across the batch: one stacked bar per requirement, the four states in their own colours */
+.cohort { width: 100%; border-collapse: collapse; }
+.cohort th, .cohort td { padding: 10px 16px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: middle; font-size: 14.5px; }
+.cohort tr:last-child th, .cohort tr:last-child td { border-bottom: 0; }
+.cohort th { font-weight: 500; width: 34%; }
+.cohort td.bar { width: 40%; }
+.cohort .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--paper-2); }
+.cohort .stack i { display: block; flex: 0 0 calc(var(--w) * 100%); }
+.cohort .seg-VERIFIED { background: var(--verified); } .cohort .seg-PARTIAL { background: var(--partial); }
+.cohort .seg-UNVERIFIED { background: var(--unverified); } .cohort .seg-CONTRADICTED { background: var(--contradicted); }
+.cohort td.so { font-family: var(--mono); font-size: 12.5px; color: var(--graphite); white-space: nowrap; }
+.claims-cohort { border-top: 1px solid var(--rule); padding: 12px 16px 14px; }
+.claims-cohort .lead { margin: 0 0 8px; }
+.claims-cohort .failed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.claims-cohort .failed li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+.claims-cohort .failed .why { color: var(--graphite); }

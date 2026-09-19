@@ -129,6 +129,36 @@ def load_run(run_id: str) -> dict:
     }
 
 
+def cohort(rows: list[dict], rubric: Rubric | None) -> dict | None:
+    """Counts across the batch, per requirement and for the submissions' own claims. Counts, never a grade.
+
+    "Six of eight never used the cache they declared" is a fact about the cohort that no single
+    run can show; it is also the sentence a TA writes in the course post-mortem.
+    """
+    done = [r for r in rows if r["status"].stage == "done"]
+    if not rubric or len(done) < 2:
+        return None
+    order = ("VERIFIED", "PARTIAL", "UNVERIFIED", "CONTRADICTED")
+    per_req = []
+    for req in rubric.requirements:
+        if not req.verifiable:
+            continue
+        states = [c["finding"].state for r in done for c in r["claims"] if c["req"].id == req.id and c["finding"]]
+        counts = {st: states.count(st) for st in order}
+        worst = max((st for st in order if st != "VERIFIED"), key=lambda st: counts[st], default=None)
+        per_req.append({"req": req, "counts": counts, "n": len(states),
+                        "segments": [(st, counts[st] / len(states) if states else 0) for st in order],
+                        "so_what": (f"{counts[worst]} of {len(states)} " + {"PARTIAL": "partial", "UNVERIFIED": "looked · not found",
+                                                                            "CONTRADICTED": "contradicted"}[worst])
+                        if worst and counts[worst] else f"all {len(states)} verified"})
+    said = [(r, c) for r in done for c in r["said"] if c["finding"]]
+    held = sum(1 for _, c in said if c["finding"].state == "VERIFIED")
+    failed = [{"run": r, "claim": c["claim"], "state": c["finding"].state} for r, c in said
+              if c["finding"].state in ("CONTRADICTED", "UNVERIFIED")]
+    failed.sort(key=lambda x: STATE_ORDER[x["state"]])
+    return {"n": len(done), "per_req": per_req, "claims_total": len(said), "claims_held": held, "claims_failed": failed[:6]}
+
+
 def queue_rows(batch: Batch, rubric: Rubric | None) -> list[dict]:
     rows = []
     for rid in batch.runIds:
@@ -196,7 +226,7 @@ def batch_page(request: Request, batch_id: str):
                               f"({round(o['share'] * 100)}% of the smaller submission)",
                  "a_name": names.get(o["a"], o["a"]), "b_name": names.get(o["b"], o["b"])}
                 for o in pipeline.batch_similarity(store, batch.runIds)]
-    return render(request, "batch.html", batch=batch, rubric=rubric, rows=rows, need=need,
+    return render(request, "batch.html", batch=batch, rubric=rubric, rows=rows, need=need, cohort=cohort(rows, rubric),
                   precedents=precedents, overlaps=overlaps)
 
 
