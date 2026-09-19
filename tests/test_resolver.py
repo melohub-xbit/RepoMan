@@ -220,3 +220,12 @@ def test_folding_invisibles_does_not_weaken_the_injection_probe():
     from repoman.probes import injection
 
     assert injection._scan_text("  type: red​is")  # still flagged as hidden characters
+
+
+def test_a_quote_copied_with_read_file_line_numbers_still_resolves(ck):
+    """Models copy `3: public enum UserRole {` verbatim from the tool output; the file has no prefix."""
+    from repoman.core.resolver import strip_line_numbers
+
+    ev = resolve(draft(start=3, end=5, quote="3: public enum UserRole {\n4:     ADMIN,\n5:     MEMBER"), ck, submission_id="s")
+    assert ev is not None and ev.quote.startswith("public enum UserRole {") and "3:" not in ev.quote
+    assert strip_line_numbers("plain text\n  more") == "plain text\n  more"  # untouched when not numbered

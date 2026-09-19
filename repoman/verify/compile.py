@@ -59,11 +59,13 @@ def compile_rubric(source_text: str, artifact_kinds: list[str] | None = None) ->
 
     available = ", ".join(artifact_kinds or ["repo"])
     agent = Agent(model=make_model(), system_prompt=COMPILE_SYSTEM, callback_handler=None)
-    drafts = agent.structured_output(
-        CompiledRubric,
+    drafts = agent(
         f"The evaluator has submitted these artifacts for each submission: {available}.\n\n"
         f"Compile this rubric:\n\n{source_text}",
-    )
+        structured_output_model=CompiledRubric,
+    ).structured_output
+    if drafts is None:
+        raise ValueError("the model returned no compiled rubric")
 
     rubric = Rubric(sourceText=source_text, compiledBy=model_id())
     for draft in drafts.requirements:

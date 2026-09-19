@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from types import SimpleNamespace
 
 from repoman.core.resolver import Checkout
 from repoman.core.types import (Contradictions, ContradictionDraft, Evidence, FileRange, Finding,
@@ -39,10 +40,10 @@ def fake_agent(monkeypatch, result=None, raises=None):
         def __init__(self, **kw):
             pass
 
-        def structured_output(self, model, prompt):
+        def __call__(self, prompt, **kw):
             if raises:
                 raise raises
-            return result
+            return SimpleNamespace(structured_output=result)
 
     monkeypatch.setattr(C, "Agent", _Agent)
     monkeypatch.setattr(C, "make_model", lambda: object())

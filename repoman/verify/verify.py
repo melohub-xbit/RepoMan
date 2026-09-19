@@ -122,7 +122,7 @@ def verify_requirement(req: Requirement, checkout: Checkout, *, submission_id: s
                        precedents: list[Precedent] = (), flags: list[FlagKind] = ()
                        ) -> tuple[Finding, UsageRecord | None, int]:
     """One requirement → one Finding. Always returns a Finding, whatever goes wrong."""
-    box = ToolBox(root=checkout.root, pages=checkout.pages, probe_summary=probe_summary,
+    box = ToolBox(root=checkout.root, pages=checkout.pages, probe_summary=probe_summary, repo_map=checkout.repo_map,
                   quarantined=quarantined, cap=TOOL_CAP)
 
     try:
@@ -188,7 +188,8 @@ Write the finding now, using only what the tools actually showed you.
 `evidence` must contain at least one citation, and every citation needs:
   - `locator`: {"kind": "file_range", "path": "<path as shown>", "startLine": <n>, "endLine": <n>}
     or {"kind": "doc_span", "page": <n>} for the report.
-  - `quote`: the text at those exact lines, copied character for character from the tool output.
+  - `quote`: the text at those exact lines, copied from the tool output — without the `N: ` line-number
+    prefix read_file adds; the file itself does not contain it.
 
 If you did not find evidence, say so: set state to UNVERIFIED and cite the files you searched. \
 Do not invent a path, a line number, or a quote to fill the field.\
@@ -202,14 +203,19 @@ def _ask(req: Requirement, box: ToolBox, precedents) -> tuple[FindingDraft, Usag
     results are submission content. docs/05 says log usage, not prompts.
     """
     agent = Agent(model=make_model(), system_prompt=VERIFY_SYSTEM, tools=box.build(),
-                  callback_handler=None)
+                  messages=box.seed(), callback_handler=None)
     turn = build_turn(req, box, precedents)
 
     last: Exception | None = None
     for attempt in range(THROTTLE_RETRIES):
         try:
             result = agent(turn)
-            draft = agent.structured_output(FindingDraft, WRITE_FINDING)
+            # The schema is forced as the only tool for the closing turn. The older
+            # `agent.structured_output(...)` sends tool_choice=none, and a model that wants one more
+            # read_file is then a 400 on OpenAI-compatible endpoints rather than a finding.
+            draft = agent(WRITE_FINDING, structured_output_model=FindingDraft).structured_output
+            if draft is None:
+                raise ValueError("the model returned no structured finding")
             return draft, _usage_of(result, req)
         except Exception as e:
             if not _is_throttling(e) or attempt == THROTTLE_RETRIES - 1:

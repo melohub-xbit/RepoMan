@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from types import SimpleNamespace
 
 from repoman.core.types import CompiledRubric, RequirementDraft, Scale
 from repoman.verify import compile as C
@@ -56,8 +57,8 @@ def test_an_empty_quote_yields_no_span():
 def _compiled(monkeypatch, drafts):
     monkeypatch.setattr(C, "make_model", lambda: object())
     monkeypatch.setattr(C.Agent, "__init__", lambda self, **kw: None)
-    monkeypatch.setattr(C.Agent, "structured_output",
-                        lambda self, model, prompt: CompiledRubric(requirements=drafts))
+    monkeypatch.setattr(C.Agent, "__call__",  # agent(prompt, structured_output_model=...) → result
+                        lambda self, prompt, **kw: SimpleNamespace(structured_output=CompiledRubric(requirements=drafts)))
     return C.compile_rubric(RUBRIC, ["repo"])
 
 

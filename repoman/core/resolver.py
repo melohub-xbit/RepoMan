@@ -38,6 +38,7 @@ class Checkout:
     commitSha: str
     pages: dict[str, str] = field(default_factory=dict)  # report_pages.json: {"1": "text", ...}
     captures: tuple[Evidence, ...] = ()  # probe-made http_capture / git_object evidence
+    repo_map: str = ""  # probes/repomap.build(): the agents' seeded first tool result
 
 
 # --- whitespace-insensitive matching that can still point back at the original bytes ---
@@ -125,7 +126,30 @@ def _span_containing(lines: Sequence[str], lo: int, hi: int, quote: str) -> tupl
     return None  # unreachable: the window contains it, so some prefix does
 
 
+_NUMBERED = re.compile(r"^\s*\d+:\s?", re.M)
+
+
+def strip_line_numbers(quote: str) -> str:
+    """`read_file` shows `12: text`; models copy the prefix into the quote more often than not.
+
+    A quote whose every line starts with `N:` is the tool's rendering, not the file's. The prefix
+    is removed before matching, and only then — a file line that genuinely starts with `7: ` would
+    have matched on the first attempt.
+    """
+    lines = quote.splitlines()
+    if lines and all(_NUMBERED.match(ln) for ln in lines if ln.strip()):
+        return "\n".join(_NUMBERED.sub("", ln, count=1) for ln in lines)
+    return quote
+
+
 def _resolve_file_range(loc: FileRange, quote: str, ck: Checkout) -> tuple[FileRange, str] | None:
+    found = _resolve_file_range_raw(loc, quote, ck)
+    if found is None and (bare := strip_line_numbers(quote)) != quote:
+        found = _resolve_file_range_raw(loc, bare, ck)
+    return found
+
+
+def _resolve_file_range_raw(loc: FileRange, quote: str, ck: Checkout) -> tuple[FileRange, str] | None:
     lines = _read_lines(ck.root, loc.path)
     if not lines:
         return None

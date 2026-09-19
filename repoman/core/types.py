@@ -192,11 +192,36 @@ class Finding(BaseModel):
 # --- What the model is allowed to return (verify/) -----------------------------
 
 
+LOCATOR_SCHEMA = {  # what a model is shown for `locator`: one flat object, no $ref, no oneOf
+    "type": "object",
+    "title": "Locator",
+    "description": ("Where the quote is. A file: kind=\"file_range\" with path, startLine, endLine (as shown by "
+                    "read_file). A report page: kind=\"doc_span\" with page. A recorded capture: "
+                    "kind=\"http_capture\" with url, or kind=\"git_object\" with commitSha."),
+    "properties": {
+        "kind": {"type": "string", "enum": ["file_range", "doc_span", "http_capture", "git_object"]},
+        "path": {"type": "string"}, "startLine": {"type": "integer"}, "endLine": {"type": "integer"},
+        "page": {"type": "integer"}, "url": {"type": "string"}, "commitSha": {"type": "string"},
+    },
+    "required": ["kind"],
+}
+
+
 class LocatorDraft(BaseModel):
     """A proposed citation. Becomes Evidence only if the resolver finds `quote` there."""
 
     locator: EvidenceLocator
     quote: str
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        """The model-facing schema. The stored type is a discriminated union, which pydantic renders as
+        oneOf + $ref; Strands' tool-schema flattener drops the $defs and leaves the refs dangling, and
+        OpenAI-compatible endpoints reject that outright. The model gets one flat object instead;
+        validation below still builds the strict locator from it."""
+        schema = handler.resolve_ref_schema(handler(core_schema))
+        schema["properties"]["locator"] = LOCATOR_SCHEMA
+        return schema
 
     @model_validator(mode="before")
     @classmethod

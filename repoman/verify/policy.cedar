@@ -14,6 +14,7 @@ permit (
 // The extracted report pages and our own probe output.
 permit (principal == Agent::"verify", action == Action::"read_report_page", resource is Report);
 permit (principal == Agent::"verify", action == Action::"probe_results", resource is Probes);
+permit (principal == Agent::"verify", action == Action::"repo_map", resource is Map);
 
 // Injection-scanner quarantine wins over every permit above.
 forbid (principal, action, resource) when { resource.quarantined };

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import fnmatch
 import re
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -55,6 +56,7 @@ class ToolBox:
     calls: int = 0
     read_paths: list[str] = field(default_factory=list)
     denied: list[str] = field(default_factory=list)  # "action resource" for every request the policy refused
+    repo_map: str = ""  # probes/repomap.build(): tree + dependencies + symbols, computed once per submission
 
     def __post_init__(self) -> None:
         # Resolve once so every path comparison below is between absolute paths.
@@ -251,6 +253,15 @@ class ToolBox:
             return untrusted("deps", "\n\n".join(blocks))
 
         @tool
+        def repo_map() -> str:
+            """The whole-repository map: file tree, declared dependencies, and every route, class, security
+            annotation and test declaration with its path and line. Already shown to you at the start."""
+            if not allowed("repo_map", "Map", "repo"):
+                self.denied.append("repo_map repo")
+                return untrusted("repo_map", "Not available.")
+            return untrusted("repo_map", self.repo_map or "No map was built for this submission.")
+
+        @tool
         def probe_results() -> str:
             """What the deterministic probes found: dependencies, tests, git timeline, injection, deployment."""
             spent = self._spend()
@@ -260,4 +271,22 @@ class ToolBox:
             # one tool result that is not wrapped as untrusted.
             return self.probe_summary or "No probe results are available for this submission."
 
-        return [tree, grep, read_file, read_report_page, list_deps, probe_results]
+        return [repo_map, tree, grep, read_file, read_report_page, list_deps, probe_results]
+
+    def seed(self) -> list[dict]:
+        """The conversation's opening: a repo_map call and its result, already made.
+
+        It is a tool-result message, so the map is submission content in the only place submission
+        content is allowed (docs/05 boundary 1), and it costs no budget: the three orientation calls
+        every investigation used to make are already answered when the model reads the requirement.
+        """
+        if not self.repo_map:
+            return []
+        tid = f"seed_{uuid.uuid4().hex[:12]}"
+        return [
+            {"role": "user", "content": [{"text": "Before the requirement, look at the map of this submission."}]},
+            {"role": "assistant", "content": [{"toolUse": {"toolUseId": tid, "name": "repo_map", "input": {}}}]},
+            {"role": "user", "content": [{"toolResult": {"toolUseId": tid, "status": "success",
+                                                         "content": [{"text": untrusted("repo_map", self.repo_map)}]}}]},
+            {"role": "assistant", "content": [{"text": "I have the map. Ready for the requirement."}]},
+        ]

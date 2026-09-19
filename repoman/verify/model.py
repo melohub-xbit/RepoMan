@@ -27,11 +27,9 @@ def make_model():
     if groq_key:
         # Test bench only: Groq's OpenAI-compatible endpoint, free and fast, for exercising the prompts
         # when neither a local model nor Bedrock is at hand. Submissions leave the machine on this path.
-        from strands.models.openai import OpenAIModel
-
-        return OpenAIModel(client_args={"api_key": groq_key, "base_url": "https://api.groq.com/openai/v1"},
-                           model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_GROQ_MODEL),
-                           params={"temperature": 0})
+        return _GroqModel(client_args={"api_key": groq_key, "base_url": "https://api.groq.com/openai/v1"},
+                          model_id=os.environ.get("REPOMAN_MODEL_ID", DEFAULT_GROQ_MODEL),
+                          params={"temperature": 0})
 
     from strands.models import BedrockModel
 
@@ -53,6 +51,46 @@ def make_model():
 
         kwargs |= {"cache_config": CacheConfig(strategy="auto"), "cache_tools": "default"}
     return BedrockModel(**kwargs)
+
+
+def _inline_refs(schema: dict) -> dict:
+    """Replace every {"$ref": "#/$defs/X"} with the definition itself. Groq's tool validator has no $ref support;
+    Bedrock's does, so this is bench-only."""
+    defs: dict = {}
+
+    def collect(node):  # $defs can sit at any level, not only the root
+        if isinstance(node, dict):
+            defs.update(node.get("$defs", {}))
+            for v in node.values():
+                collect(v)
+        elif isinstance(node, list):
+            for x in node:
+                collect(x)
+
+    collect(schema)
+
+    def walk(node):
+        if isinstance(node, dict):
+            if "$ref" in node and node["$ref"].startswith("#/$defs/"):
+                return walk(defs[node["$ref"].rsplit("/", 1)[1]])
+            return {k: walk(v) for k, v in node.items() if k != "$defs"}
+        if isinstance(node, list):
+            return [walk(x) for x in node]
+        return node
+
+    return walk(schema)
+
+
+try:
+    from strands.models.openai import OpenAIModel as _OpenAIModel
+except ImportError:  # the [openai] extra is only needed for the bench
+    _OpenAIModel = object
+
+
+class _GroqModel(_OpenAIModel):
+    def format_request(self, messages, tool_specs=None, system_prompt=None, tool_choice=None, **kw):
+        flat = [{**t, "inputSchema": {"json": _inline_refs(t["inputSchema"]["json"])}} for t in tool_specs or []]
+        return super().format_request(messages, flat, system_prompt, tool_choice, **kw)
 
 
 def model_id() -> str:

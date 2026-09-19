@@ -56,7 +56,9 @@ def apply_contradictions(findings: list[Finding], requirements: list[Requirement
 
     try:
         agent = Agent(model=make_model(), system_prompt=CONTRADICT_SYSTEM, callback_handler=None)
-        result = agent.structured_output(Contradictions, _turn(findings, titles, claims))
+        result = agent(_turn(findings, titles, claims), structured_output_model=Contradictions).structured_output
+        if result is None:
+            raise ValueError("the model returned no contradiction list")
     except Exception as e:
         # Leave every finding as it was — but say so. This pass failing is not a detail.
         return findings, 0, f"the contradiction pass did not run: {type(e).__name__}"

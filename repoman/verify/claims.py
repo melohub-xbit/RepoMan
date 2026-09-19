@@ -55,7 +55,8 @@ class ClaimsDraft(BaseModel):
 def extract_claims(checkout: Checkout, *, submission_id: str, quarantined: frozenset[str] = frozenset()
                    ) -> tuple[list[Claim], UsageRecord | None, int]:
     """(claims, usage, dropped). A claim whose quoted sentence is not where it says is dropped, not kept."""
-    box = ToolBox(root=checkout.root, pages=checkout.pages, quarantined=quarantined, cap=EXTRACT_CAP)
+    box = ToolBox(root=checkout.root, pages=checkout.pages, quarantined=quarantined, cap=EXTRACT_CAP,
+                  repo_map=checkout.repo_map)
     has_report = bool(checkout.pages) and "report" not in quarantined
     turn = ("Read the README" + (" and the report" if has_report else "")
             + ", then list the submission's checkable claims about itself.")
@@ -73,7 +74,7 @@ def extract_claims(checkout: Checkout, *, submission_id: str, quarantined: froze
 def _ask(box: ToolBox, turn: str) -> tuple[ClaimsDraft, object]:
     """The only model call in this module; tests replace it."""
     agent = Agent(model=make_model(), system_prompt=CLAIMS_SYSTEM.format(max=MAX_CLAIMS), tools=box.build(),
-                  callback_handler=None)
+                  messages=box.seed(), callback_handler=None)
     result = agent(turn)
     # The output schema is forced as the only tool for this turn, so a model that would rather read one
     # more file cannot; that request is a 400 on OpenAI-compatible endpoints.

@@ -15,7 +15,7 @@ from repoman.core.resolver import Checkout
 from repoman.core.types import (Precedent, Requirement, RunManifest, RunStatus, Rubric, Submission,
                                 new_id, now)
 from repoman.intake import IntakeError, acquire, find_readme
-from repoman.probes import PROBE_VERSION, similarity
+from repoman.probes import PROBE_VERSION, repomap, similarity
 from repoman.probes.run import run_probes
 from repoman.store import Store
 from repoman.verify.claims import extract_claims, verify_claims
@@ -66,8 +66,8 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     store.put_json(prefix + "fingerprint.json", report.fingerprint)
     store.put_json(prefix + "submission.json", sub)  # probes may have quarantined artifacts
 
-    checkout = Checkout(root=repo, commitSha=sub.commitSha, pages=acquired.pages,
-                        captures=report.captures)
+    checkout = Checkout(root=repo, commitSha=sub.commitSha, pages=acquired.pages, captures=report.captures,
+                        repo_map=repomap.build(repo, frozenset(report.quarantined)))
 
     manifest = RunManifest(
         id=run_id, submissionId=sub.id, rubricId=rubric.id, rubricVersion=rubric.version,
