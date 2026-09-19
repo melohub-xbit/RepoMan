@@ -1,0 +1,62 @@
+[
+  {
+    "id": "c1",
+    "source": {
+      "id": "1df603247319",
+      "locator": {
+        "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+        "endLine": 3,
+        "kind": "file_range",
+        "path": "README.md",
+        "startLine": 3
+      },
+      "probeId": null,
+      "provenance": "model",
+      "quote": "Task management API with JWT authentication, full role-based access control, Redis caching and a comprehensive test suite.",
+      "resolvedAt": "2026-09-19T16:33:51+00:00",
+      "submissionId": "s_taskflow"
+    },
+    "statement": "JWT authentication protects the API.",
+    "submissionId": "s_taskflow"
+  },
+  {
+    "id": "c2",
+    "source": {
+      "id": "28759e710715",
+      "locator": {
+        "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+        "endLine": 3,
+        "kind": "file_range",
+        "path": "README.md",
+        "startLine": 3
+      },
+      "probeId": null,
+      "provenance": "model",
+      "quote": "Task management API with JWT authentication, full role-based access control, Redis caching and a comprehensive test suite.",
+      "resolvedAt": "2026-09-19T16:33:51+00:00",
+      "submissionId": "s_taskflow"
+    },
+    "statement": "Redis is used as a cache.",
+    "submissionId": "s_taskflow"
+  },
+  {
+    "id": "c3",
+    "source": {
+      "id": "8ed3db61fc99",
+      "locator": {
+        "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
+        "endLine": 3,
+        "kind": "file_range",
+        "path": "README.md",
+        "startLine": 3
+      },
+      "probeId": null,
+      "provenance": "model",
+      "quote": "Task management API with JWT authentication, full role-based access control, Redis caching and a comprehensive test suite.",
+      "resolvedAt": "2026-09-19T16:33:51+00:00",
+      "submissionId": "s_taskflow"
+    },
+    "statement": "The test suite is comprehensive.",
+    "submissionId": "s_taskflow"
+  }
+]

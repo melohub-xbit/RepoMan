@@ -1,0 +1,37 @@
+{% set claim = c.claim %}{% set f = c.finding %}{% set st = f.state if f else 'none' %}
+<section class="claim card said s-{{ st }}" id="said-{{ claim.id }}">
+  <div class="band">
+    {% if f %}<span class="state state-{{ f.state }}">{{ mark(f.state) }}{{ 'Looked · not found' if f.state == 'UNVERIFIED' else f.state|capitalize }}</span>
+    {% else %}<span class="state state-none">{{ mark('none') }}Not checked</span>{% endif %}
+    <span class="pos">They said · {{ c.pos }}</span>
+  </div>
+  <div class="body">
+    <h2>{{ claim.statement }}</h2>
+    <button class="cite source" type="button" aria-pressed="false" data-title="{{ locator_text(claim.source.locator) }}"
+            hx-get="/runs/{{ run_id }}/evidence/{{ claim.source.id }}" hx-target="#pane-content" hx-swap="innerHTML" hx-on::after-request="openCite(this)">
+      <span class="prov model" title="the sentence that makes the claim">said</span>
+      <span><span class="loc">{{ locator_text(claim.source.locator) }}</span><span class="quote">“{{ claim.source.quote|short(160) }}”</span></span>
+      <span></span>
+    </button>
+    {% if f %}
+      <p class="summary">{{ f.summary }}</p>
+      <p class="confidence"><b>{{ f.confidence }} confidence</b> — {{ f.confidenceReason }}</p>
+    {% endif %}
+  </div>
+  {% if f %}
+  <div class="evidence">
+    <div class="k"><span>What the code shows · {{ f.evidence|length }}</span></div>
+    <ul class="cites">
+      {% for e in f.evidence %}
+      <li><button class="cite" type="button" aria-pressed="false" data-title="{{ locator_text(e.locator) }}"
+                  hx-get="/runs/{{ run_id }}/evidence/{{ e.id }}" hx-target="#pane-content" hx-swap="innerHTML" hx-on::after-request="openCite(this)">
+        <span class="prov {{ e.provenance }}">{{ 'probe' if e.provenance == 'probe' else 'model' }}</span>
+        <span><span class="loc">{{ locator_text(e.locator) }}</span><span class="quote">{{ e.quote|short(140) }}</span></span>
+        {% if e.locator.kind == 'file_range' and sub.repoUrl %}<a class="ext" href="{{ permalink(e.locator, sub) }}" target="_blank" rel="noopener" title="Open on GitHub" onclick="event.stopPropagation()"><svg class="mark" aria-hidden="true"><use href="#i-ext"/></svg></a>{% else %}<span></span>{% endif %}
+      </button></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% if f.questions %}<details class="questions"><summary>Questions to ask the team · {{ f.questions|length }}</summary><ol>{% for q in f.questions %}<li>{{ q }}</li>{% endfor %}</ol></details>{% endif %}
+  {% endif %}
+</section>

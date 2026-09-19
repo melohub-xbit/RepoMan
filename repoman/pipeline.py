@@ -18,6 +18,7 @@ from repoman.intake import IntakeError, acquire, find_readme
 from repoman.probes import PROBE_VERSION, similarity
 from repoman.probes.run import run_probes
 from repoman.store import Store
+from repoman.verify.claims import extract_claims, verify_claims
 from repoman.verify.compile import compile_rubric as _compile  # noqa: F401  (re-exported below)
 from repoman.verify.contradict import apply_contradictions
 from repoman.verify.model import model_id
@@ -32,7 +33,8 @@ def compile_rubric(source_text: str, artifact_kinds: list[str]) -> Rubric:
 def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str | None = None,
                    zip_path: str | None = None, report_path: str | None = None,
                    deploy_url: str | None = None, event_window: tuple[str, str] | None = None,
-                   precedents: list[Precedent] = (), run_id: str | None = None) -> str:
+                   precedents: list[Precedent] = (), run_id: str | None = None,
+                   check_claims: bool = True) -> str:
     """Stages 01–05 for one submission. Blocking; `web/` calls it in a thread."""
     run_id = run_id or new_id()
     prefix = f"runs/{run_id}/"
@@ -86,6 +88,27 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     )
     store.put_json(prefix + "findings.json", outcome.findings)
 
+    # --- 05a claims: the submission's own description, checked the same way ------
+    claim_findings = []
+    if check_claims:
+        status("claims", "reading what the submission says about itself", 0, 0)
+        claims, usage, lost = extract_claims(checkout, submission_id=sub.id,
+                                             quarantined=frozenset(report.quarantined))
+        store.put_json(prefix + "claims.json", claims)
+        if usage:
+            outcome.usage.append(usage)
+        outcome.mismatches += lost
+        if claims:
+            claimed = verify_claims(
+                claims, checkout, submission_id=sub.id, probe_summary=report.summary_for_prompt(),
+                quarantined=frozenset(report.quarantined), flags=report.flags,
+                on_progress=lambda done, total, _cid: status("claims", f"claim {done} of {total}", done, total),
+            )
+            claim_findings = claimed.findings
+            outcome.usage += claimed.usage
+            outcome.mismatches += claimed.mismatches
+            store.put_json(prefix + "findings.json", outcome.findings + claim_findings)
+
     # --- 05b contradiction ------------------------------------------------------
     status("contradict", "cross-checking the submission's own claims", len(checkable), len(checkable))
     readme = find_readme(repo)
@@ -93,7 +116,7 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
         outcome.findings, rubric.requirements, checkout, submission_id=sub.id,
         readme=readme.read_text(encoding="utf-8", errors="replace") if readme else "",
     )
-    store.put_json(prefix + "findings.json", findings)
+    store.put_json(prefix + "findings.json", findings + claim_findings)
 
     manifest.usage = outcome.usage
     if note:

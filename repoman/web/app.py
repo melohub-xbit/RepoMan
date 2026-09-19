@@ -21,7 +21,7 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import TextLexer, get_lexer_for_filename
 from pygments.util import ClassNotFound
 
-from repoman.core.types import (Batch, Decision, Finding, Level, Precedent, Requirement, Rubric, RunStatus, Scale,
+from repoman.core.types import (Batch, Claim, Decision, Finding, Level, Precedent, Requirement, Rubric, RunStatus, Scale,
                                 SourceSpan, coverage, new_id)
 from repoman.store import make_store
 
@@ -44,7 +44,7 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 tpl = Jinja2Templates(directory=HERE / "templates")
 store = make_store()
 
-STAGES = ["queued", "acquire", "probe", "verify", "contradict", "done"]
+STAGES = ["queued", "acquire", "probe", "verify", "claims", "contradict", "done"]
 STATE_ORDER = {"CONTRADICTED": 0, "UNVERIFIED": 1, "PARTIAL": 2, "VERIFIED": 3}
 
 
@@ -109,13 +109,16 @@ def load_run(run_id: str) -> dict:
     flags = sorted({fl for f in findings for fl in f.flagged})
     claims = [{"req": r, "finding": by_req.get(r.id), "decision": dec_by_req.get(r.id), "pos": i + 1, "total": len(reqs)}
               for i, r in enumerate(reqs)]
+    # the submission's own claims: never scored, never in coverage — shown beside the rubric
+    self_claims = [Claim.model_validate(c) for c in store.get_json(p + "claims.json", [])]
+    said = [{"claim": c, "finding": by_req.get(c.id), "pos": i + 1} for i, c in enumerate(self_claims)]
     verified, verifiable = coverage(findings, reqs)
     scores = [d.score for d in decisions if d.score is not None]
     tally = {}
     for f in findings:
         tally[f.state] = tally.get(f.state, 0) + 1
     return {
-        "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "flags": flags, "tally": tally,
+        "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "said": said, "flags": flags, "tally": tally,
         "probes": store.get_json(p + "probes.json", {}),
         # A run whose status.json has not been written yet (the thread has not started) is queued,
         # not a 500. model_validate(None) would raise here and take the whole queue page with it.
@@ -169,8 +172,9 @@ def index(request: Request):
 
 
 @app.post("/batches")
-def create_batch(name: str = Form(...), start: str = Form(""), end: str = Form("")):
-    b = Batch(name=name.strip() or "Untitled batch", eventWindow=(start, end) if start and end else None)
+def create_batch(name: str = Form(...), start: str = Form(""), end: str = Form(""), claims: str = Form("")):
+    b = Batch(name=name.strip() or "Untitled batch", eventWindow=(start, end) if start and end else None,
+              checkClaims=claims == "on")
     store.put_json(f"batches/{b.id}.json", b)
     return RedirectResponse(f"/batches/{b.id}/rubric", status_code=303)
 
@@ -298,7 +302,7 @@ def _run(run_id, batch, rubric, repo_url, zip_path, report_path, deploy_url, pre
     try:
         pipeline.run_submission(store, batch.id, rubric, run_id=run_id, repo_url=repo_url, zip_path=zip_path,
                                 report_path=report_path, deploy_url=deploy_url, event_window=batch.eventWindow,
-                                precedents=precedents)
+                                precedents=precedents, check_claims=batch.checkClaims)
     except Exception as e:  # a failed run is a visible row, never a missing one
         store.put_json(f"runs/{run_id}/status.json", RunStatus(stage="failed", detail=f"{type(e).__name__}: {e}"[:200]))
 
@@ -334,6 +338,9 @@ def run_status(request: Request, run_id: str):
 def evidence(request: Request, run_id: str, ev_id: str):
     r = load_run(run_id)
     ev = next((e for c in r["claims"] if c["finding"] for e in c["finding"].evidence if e.id == ev_id), None)
+    if ev is None:  # a claim's own words, or the evidence of the finding about it
+        ev = next((e for c in r["said"] for e in [c["claim"].source] + (c["finding"].evidence if c["finding"] else [])
+                   if e.id == ev_id), None)
     if ev is None:
         return HTMLResponse("", status_code=404)
     loc = ev.locator
@@ -468,6 +475,14 @@ def packet(run_id: str):
         if d:
             lines += [f"**Evaluator:** {'override' if d.overrodeFindingId else 'accepted'} · "
                       f"{d.level + ' · ' if d.level else ''}marks {d.score if d.score is not None else '—'} · {d.note}", ""]
+    if r["said"]:
+        lines += ["# What the submission said about itself", "_Checked the same way; not scored._", ""]
+        for c in r["said"]:
+            claim, f = c["claim"], c["finding"]
+            lines += [f"## {claim.statement}", f"Said at {permalink(claim.source.locator, r['sub'])}: “{claim.source.quote[:200]}”", ""]
+            if f:
+                lines += [f"**{f.state}** — {f.summary}", ""]
+                lines += [f"- {permalink(e.locator, r['sub'])} ({e.provenance}) — `{e.quote.splitlines()[0][:120]}`" for e in f.evidence] + [""]
     return Response("\n".join(lines), media_type="text/markdown")
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from repoman.core.types import (Artifact, Batch, Decision, DocSpan, Evidence, FileRange, Finding, GitObject,
+from repoman.core.types import (Artifact, Batch, Claim, Decision, DocSpan, Evidence, FileRange, Finding, GitObject,
                                 HttpCapture, Level, Requirement, Rubric, Scale, RunManifest, RunStatus, SourceSpan,
                                 Submission, UsageRecord)
 
@@ -161,6 +161,29 @@ manifest = RunManifest(id="run_sample", submissionId=sub.id, rubricId=rubric.id,
                        modelId="fixture", finishedAt="2026-09-18T14:05:40Z",
                        usage=[UsageRecord(**{"pass": "verify", "inputTokens": 412_000, "outputTokens": 9_300, "cacheReadTokens": 0})])
 
+# what the submission says about itself — the README's one sentence makes four claims; two hold up
+README_LINE = "Task management API with JWT authentication, full role-based access control, Redis caching and a comprehensive test suite."
+claims = [
+    Claim(id="c1", submissionId=sub.id, statement="JWT authentication protects the API.", source=ev(fr("README.md", 3, 3), README_LINE)),
+    Claim(id="c2", submissionId=sub.id, statement="Redis is used as a cache.", source=ev(fr("README.md", 3, 3), README_LINE)),
+    Claim(id="c3", submissionId=sub.id, statement="The test suite is comprehensive.", source=ev(fr("README.md", 3, 3), README_LINE)),
+]
+findings += [
+    Finding(submissionId=sub.id, requirementId="c1", subject="claim", state="VERIFIED",
+            summary="JwtFilter validates a bearer token on every /api/** request.",
+            evidence=[ev(fr("src/main/java/app/security/JwtFilter.java", 22, 60), 'String token = header.substring(7);\n        Claims claims = jwtService.parse(token);')],
+            confidence="high", confidenceReason="Read the filter directly.", producedBy="fixture"),
+    Finding(submissionId=sub.id, requirementId="c2", subject="claim", state="UNVERIFIED",
+            summary="The Redis starter is declared but nothing imports it, no @Cacheable, no CacheManager.",
+            evidence=[ev(fr("pom.xml", 48, 51), "<artifactId>spring-boot-starter-data-redis</artifactId>", prov="probe", probe="deps")],
+            confidence="medium", confidenceReason="Declared with zero imports; absence in the tree is a search result.",
+            questions=["Show one request that reads from Redis."], producedBy="fixture"),
+    Finding(submissionId=sub.id, requirementId="c3", subject="claim", state="PARTIAL",
+            summary="Fourteen tests, eleven of them context-load or smoke checks.",
+            evidence=[ev(fr("src/test/java/app/TaskflowApplicationTests.java", 12, 16), "@Test\n    void contextLoads() {\n    }", prov="probe", probe="tests")],
+            confidence="high", confidenceReason="Test discovery is deterministic.", producedBy="fixture"),
+]
+
 OUT.mkdir(parents=True, exist_ok=True)
 
 
@@ -176,6 +199,7 @@ dump("batch.json", batch)
 dump("rubric.json", rubric)
 dump("submission.json", sub)
 dump("findings.json", findings)
+dump("claims.json", claims)
 dump("probes.json", probes)
 dump("manifest.json", manifest)
 dump("report_pages.json", report_pages)

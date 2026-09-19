@@ -164,10 +164,20 @@ FlagKind = Literal[
 Confidence = Literal["high", "medium", "low"]
 
 
+class Claim(BaseModel):
+    """Something the submission says about itself (README, report), in checkable form, with where it said it."""
+
+    id: str = Field(default_factory=new_id)
+    submissionId: str
+    statement: str  # the checkable form, e.g. "Redis is used as a cache for read-heavy endpoints"
+    source: Evidence  # the claim's own words at their location; resolved like any evidence
+
+
 class Finding(BaseModel):
     id: str = Field(default_factory=new_id)
     submissionId: str
-    requirementId: str
+    requirementId: str  # a Requirement id, or a Claim id when subject == "claim"
+    subject: Literal["requirement", "claim"] = "requirement"
     state: FindingState
     flagged: list[FlagKind] = []
     summary: str
@@ -318,7 +328,7 @@ class RunManifest(BaseModel):
     notes: list[str] = []  # stages that degraded. A run that did less than usual must say so.
 
 
-RunStage = Literal["queued", "acquire", "probe", "verify", "contradict", "done", "failed"]
+RunStage = Literal["queued", "acquire", "probe", "verify", "claims", "contradict", "done", "failed"]
 
 
 class RunStatus(BaseModel):
@@ -335,6 +345,7 @@ class Batch(BaseModel):
     eventWindow: tuple[str, str] | None = None
     rubricId: str | None = None
     runIds: list[str] = []
+    checkClaims: bool = True  # also verify what each submission claims about itself (one more agent run per claim)
     createdAt: str = Field(default_factory=now)
 
 

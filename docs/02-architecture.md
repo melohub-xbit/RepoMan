@@ -107,6 +107,7 @@ runs/<runId>/findings.json
 runs/<runId>/decisions.json      # human writes; everything else is machine output
 runs/<runId>/report_pages.json
 runs/<runId>/fingerprint.json    # normalised per-file hashes, for cross-submission comparison
+runs/<runId>/claims.json         # Claim[] — what the submission says about itself; findings with subject "claim" refer to these
 runs/<runId>/repo/               # the checkout, only in LocalStore; S3Store keeps a tarball
 precedents/<batchId>.json
 ```

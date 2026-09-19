@@ -37,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--until", dest="window_end", help="event window end")
     run.add_argument("--data", default=os.environ.get("REPOMAN_DATA", "data"), help="where to write the run")
     run.add_argument("--json", action="store_true", help="print findings as JSON instead of a table")
+    run.add_argument("--no-claims", action="store_true", help="skip checking what the submission claims about itself")
 
     args = parser.parse_args(argv)
     if args.command == "run" and not args.rubric and not args.batch:
@@ -75,6 +76,7 @@ def _run(args) -> int:
         repo_url=None if is_zip else args.target,
         zip_path=args.target if is_zip else None,
         report_path=args.report, deploy_url=args.deploy, event_window=batch.eventWindow,
+        check_claims=not args.no_claims,
     )
 
     # Link the run to its batch, so a CLI run is a first-class row in the web UI rather than an

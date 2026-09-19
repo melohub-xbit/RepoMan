@@ -2,7 +2,7 @@
   "deploy": {
     "evidence": [
       {
-        "id": "9e593ab1a624",
+        "id": "522bdf41a1ca",
         "locator": {
           "capturedAt": "2026-09-18T14:02:11Z",
           "kind": "http_capture",
@@ -13,7 +13,7 @@
         "probeId": "deploy",
         "provenance": "probe",
         "quote": "<title>TaskFlow</title>",
-        "resolvedAt": "2026-09-19T11:05:04+00:00",
+        "resolvedAt": "2026-09-19T16:33:51+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -22,7 +22,7 @@
   "deps": {
     "evidence": [
       {
-        "id": "30a9698d1afe",
+        "id": "f0dd2ab1a317",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 51,
@@ -33,7 +33,7 @@
         "probeId": "deps",
         "provenance": "probe",
         "quote": "<artifactId>spring-boot-starter-data-redis</artifactId>",
-        "resolvedAt": "2026-09-19T11:05:04+00:00",
+        "resolvedAt": "2026-09-19T16:33:51+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -42,7 +42,7 @@
   "git": {
     "evidence": [
       {
-        "id": "012db712de86",
+        "id": "60ffbf23710b",
         "locator": {
           "authorHash": "7a1f3c9e2b44",
           "commitSha": "e41b7c2d9a0f",
@@ -52,7 +52,7 @@
         "probeId": "git",
         "provenance": "probe",
         "quote": "feat: add everything (+4,812 \u2212120)",
-        "resolvedAt": "2026-09-19T11:05:04+00:00",
+        "resolvedAt": "2026-09-19T16:33:51+00:00",
         "submissionId": "s_taskflow"
       }
     ],
@@ -65,7 +65,7 @@
   "tests": {
     "evidence": [
       {
-        "id": "090d5cb59de0",
+        "id": "73b409f4cfef",
         "locator": {
           "commitSha": "9f3c2a1d7e4b8c0a5d6e7f8091a2b3c4d5e6f708",
           "endLine": 16,
@@ -76,7 +76,7 @@
         "probeId": "tests",
         "provenance": "probe",
         "quote": "@Test\n    void contextLoads() {\n    }",
-        "resolvedAt": "2026-09-19T11:05:04+00:00",
+        "resolvedAt": "2026-09-19T16:33:51+00:00",
         "submissionId": "s_taskflow"
       }
     ],

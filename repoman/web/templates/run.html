@@ -38,6 +38,13 @@
 <div class="work">
   <div class="findings" id="findings">
     {% for c in claims %}{% include "_claim.html" %}{% endfor %}
+    {% if said %}
+    <div class="title said-head" id="said">
+      <h1>What they said they built</h1>
+      <p class="sub">{{ said|length }} claims from the README{% if sub.artifacts|selectattr('kind', 'equalto', 'report')|list %} and report{% endif %}, each checked against the code the same way. Not scored, not in coverage — this is their description holding up, or not.</p>
+    </div>
+    {% for c in said %}{% include "_said.html" %}{% endfor %}
+    {% endif %}
   </div>
   <aside class="pane card" id="pane" aria-live="polite">
     <div class="head"><b id="pane-title">Evidence</b><span class="right"><button class="btn quiet sm" type="button" onclick="closePane()">Close</button></span></div>

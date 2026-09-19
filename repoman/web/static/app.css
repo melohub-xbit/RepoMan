@@ -510,3 +510,11 @@ html.js .reveal:not(.in) { opacity: 0; transform: translateY(10px); }
   html.js .hero .bigmark rect, html.js .hero h1 .w, html.js .hero .lines, html.js .hero .cta, html.js .hero .strip { animation: none; opacity: 1; translate: none; scale: none; }
   .pane { transition: none; }
 }
+
+/* the submission's own claims: same card grammar, a "said" cite for the sentence that made the claim */
+.field.check .opt { font-family: var(--sans); font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--ink); display: inline-flex; gap: 10px; align-items: center; }
+.field.check .opt input { width: 16px; height: 16px; margin: 0; accent-color: var(--pencil); }
+.said-head { margin-top: 28px; }
+.claim.said h2 { font-size: 17px; }
+.claim.said .cite.source { margin: 8px 0 12px; }
+.claim.said .prov.model::after { content: none; }

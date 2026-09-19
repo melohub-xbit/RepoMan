@@ -145,10 +145,17 @@ type Evidence = {
 type FindingState =
   | "VERIFIED" | "PARTIAL" | "UNVERIFIED" | "CONTRADICTED";
 
+type Claim = {
+  id: string; submissionId: string;
+  statement: string;          // the checkable form of something the submission says about itself
+  source: Evidence;           // the claim's own words at their location (README line, report page)
+};
+
 type Finding = {
   id: string;
   submissionId: string;
-  requirementId: string;
+  requirementId: string;      // a Requirement id, or a Claim id when subject is "claim"
+  subject: "requirement" | "claim";
   state: FindingState;
   flagged: FlagKind[];        // orthogonal; may co-occur with any state
   summary: string;            // one or two sentences, evaluator-facing
@@ -167,6 +174,12 @@ type FlagKind =
 
 **`evidence` has `minItems: 1`.** A finding with no locator is not a weak finding
 to be filtered later — it is a validation error that never reaches the database.
+
+**Claims are the submission's rubric.** The claims pass extracts what the README
+and report say the project does, each with a resolved locator for the sentence,
+and verifies every claim exactly like a requirement. A claim finding is never
+scored and never counts toward coverage; it tells the evaluator whether the
+submission's own description holds up. Lives in `runs/<runId>/claims.json`.
 
 `UNVERIFIED` findings still carry evidence: the evidence of *where we looked*.
 A negative result is a claim about the search, and it must be as auditable as a
