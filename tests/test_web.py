@@ -289,3 +289,10 @@ def test_the_app_never_falls_back_to_fixture_findings():
 
     assert web.pipeline.__name__ == "repoman.pipeline"
     assert not Path(web.__file__).parent.parent.joinpath("pipeline_stub.py").exists()
+
+
+def test_healthz_is_reachable_without_the_token(client, monkeypatch):
+    c, _ = client
+    monkeypatch.setenv("REPOMAN_TOKEN", "secret")
+    assert c.get("/healthz").status_code == 200
+    assert c.get("/batches").status_code == 401

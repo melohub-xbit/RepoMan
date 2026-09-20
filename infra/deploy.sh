@@ -78,13 +78,26 @@ JSON
 ARN="$(aws apprunner list-services --region "$APP_REGION" \
         --query "ServiceSummaryList[?ServiceName=='${SERVICE}'].ServiceArn | [0]" --output text)"
 
+if [ -n "$ARN" ] && [ "$ARN" != "None" ]; then
+  STATUS="$(aws apprunner describe-service --region "$APP_REGION" --service-arn "$ARN" --query 'Service.Status' --output text)"
+  if [ "$STATUS" = "CREATE_FAILED" ]; then
+    echo "==> previous create failed; deleting it first"
+    aws apprunner delete-service --region "$APP_REGION" --service-arn "$ARN" >/dev/null
+    for _ in $(seq 1 30); do
+      aws apprunner describe-service --region "$APP_REGION" --service-arn "$ARN" >/dev/null 2>&1 || break
+      sleep 10
+    done
+    ARN=""
+  fi
+fi
+
 if [ "$ARN" = "None" ] || [ -z "$ARN" ]; then
   echo "==> creating App Runner service"
   ARN="$(aws apprunner create-service --region "$APP_REGION" \
       --service-name "$SERVICE" \
       --source-configuration "$SOURCE_CONFIG" \
       --instance-configuration "{\"Cpu\":\"1 vCPU\",\"Memory\":\"2 GB\",\"InstanceRoleArn\":\"${INSTANCE_ROLE_ARN}\"}" \
-      --health-check-configuration '{"Protocol":"HTTP","Path":"/","Interval":10,"Timeout":5,"HealthyThreshold":1,"UnhealthyThreshold":5}' \
+      --health-check-configuration '{"Protocol":"HTTP","Path":"/healthz","Interval":10,"Timeout":5,"HealthyThreshold":1,"UnhealthyThreshold":5}' \
       --query 'Service.ServiceArn' --output text)"
 else
   echo "==> updating App Runner service"

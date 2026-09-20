@@ -72,7 +72,7 @@ def close_out_interrupted_runs() -> None:
 @app.middleware("http")
 async def basic_auth(request: Request, call_next):
     token = os.environ.get("REPOMAN_TOKEN")
-    if token and not request.url.path.startswith("/static"):
+    if token and not request.url.path.startswith(("/static", "/healthz")):
         header = request.headers.get("authorization", "")
         ok = False
         if header.startswith("Basic "):
@@ -182,6 +182,12 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
 
 
 # --- pages --------------------------------------------------------------------
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    """App Runner's health check cannot sign in; this is the one page that does not ask it to."""
+    return Response("ok", media_type="text/plain")
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
