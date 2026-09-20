@@ -152,13 +152,14 @@ def find_readme(repo: Path) -> Path | None:
 
 
 def acquire(dest: Path, *, batch_id: str, submission_id: str | None = None, repo_url: str | None = None,
-            zip_path: str | None = None, report_path: str | None = None, deploy_url: str | None = None) -> Acquired:
+            zip_path: str | None = None, dir_path: str | None = None, report_path: str | None = None,
+            deploy_url: str | None = None) -> Acquired:
     """Fetch everything a run will ever read, and record what was fetched.
 
     `dest` is the run's directory in the Store. The checkout lands at `dest/repo`.
     """
-    if not repo_url and not zip_path:
-        raise IntakeError("a submission needs a repository URL or a zip")
+    if not repo_url and not zip_path and not dir_path:
+        raise IntakeError("a submission needs a repository URL, a zip, or a directory")
 
     dest.mkdir(parents=True, exist_ok=True)
     repo = dest / "repo"
@@ -167,6 +168,14 @@ def acquire(dest: Path, *, batch_id: str, submission_id: str | None = None, repo
     if repo_url:
         commit_sha = clone(repo_url, repo)
         source = "github"
+    elif dir_path:
+        # One folder out of a bulk import (a DOMjudge / Moodle / Classroom export). Copied, never
+        # referenced in place, so the checkout is ours and the import folder can go.
+        if repo.exists():
+            shutil.rmtree(repo, ignore_errors=True)
+        shutil.copytree(dir_path, repo, ignore=shutil.ignore_patterns(".git", "__MACOSX", ".DS_Store"))
+        commit_sha = _tree_hash(repo)
+        source = "dir"
     else:
         unzip(zip_path, repo)
         # A zip has no commit of its own. Hash the tree so locators still pin to *something*
@@ -174,7 +183,7 @@ def acquire(dest: Path, *, batch_id: str, submission_id: str | None = None, repo
         commit_sha = _tree_hash(repo)
         source = "zip"
 
-    artifacts = [Artifact(submissionId=sub_id, kind="repo", uri=repo_url or str(zip_path))]
+    artifacts = [Artifact(submissionId=sub_id, kind="repo", uri=repo_url or str(zip_path or dir_path))]
 
     readme = find_readme(repo)
     if readme:

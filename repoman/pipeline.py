@@ -13,7 +13,7 @@ from pathlib import Path
 
 from repoman.core.resolver import Checkout
 from repoman.core.types import (Precedent, Requirement, RunManifest, RunStatus, Rubric, Submission,
-                                new_id, now)
+                                SubmissionIdentity, new_id, now)
 from repoman.intake import IntakeError, acquire, find_readme
 from repoman.probes import PROBE_VERSION, repomap, similarity
 from repoman.probes.run import run_probes
@@ -31,10 +31,10 @@ def compile_rubric(source_text: str, artifact_kinds: list[str]) -> Rubric:
 
 
 def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str | None = None,
-                   zip_path: str | None = None, report_path: str | None = None,
+                   zip_path: str | None = None, dir_path: str | None = None, report_path: str | None = None,
                    deploy_url: str | None = None, event_window: tuple[str, str] | None = None,
                    precedents: list[Precedent] = (), run_id: str | None = None,
-                   check_claims: bool = True) -> str:
+                   check_claims: bool = True, baseline: str | None = None, label: str | None = None) -> str:
     """Stages 01–05 for one submission. Blocking; `web/` calls it in a thread."""
     run_id = run_id or new_id()
     prefix = f"runs/{run_id}/"
@@ -48,12 +48,14 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     run_dir = store.local_dir(prefix.rstrip("/"))
     try:
         acquired = acquire(Path(run_dir), batch_id=batch_id, submission_id=run_id, repo_url=repo_url,
-                           zip_path=zip_path, report_path=report_path, deploy_url=deploy_url)
+                           zip_path=zip_path, dir_path=dir_path, report_path=report_path, deploy_url=deploy_url)
     except IntakeError as e:
         status("failed", str(e)[:200])
         raise
 
     sub: Submission = acquired.submission
+    if label:  # the import folder's name (a student id, a team) — identity, kept apart so blind mode can strip it
+        sub.identity = SubmissionIdentity(team=label)
     repo = Path(run_dir) / "repo"
     store.put_json(prefix + "submission.json", sub)
     store.put_json(prefix + "report_pages.json", acquired.pages)
@@ -61,7 +63,7 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
 
     # --- 04 probe ---------------------------------------------------------------
     status("probe", "deps · tests · git · injection · deploy")
-    report = run_probes(repo, sub, pages=acquired.pages, event_window=event_window)
+    report = run_probes(repo, sub, pages=acquired.pages, event_window=event_window, baseline=baseline)
     store.put_json(prefix + "probes.json", report.as_json())
     store.put_json(prefix + "fingerprint.json", report.fingerprint)
     store.put_json(prefix + "submission.json", sub)  # probes may have quarantined artifacts
@@ -149,6 +151,31 @@ def run_submission(store: Store, batch_id: str, rubric: Rubric, *, repo_url: str
     status("done", f"{verified} of {len(checkable)} requirements have verified evidence",
            len(checkable), len(checkable))
     return run_id
+
+
+def expand_bulk_import(path: Path, extract_to: Path) -> list[tuple[Path, str]]:
+    """One archive or one directory, many submissions: the shape DOMjudge, Moodle and GitHub Classroom
+    export. Every top-level folder becomes one submission labelled by its own name; a loose file at the
+    top level is wrapped as its own single-file submission. Shared by the web bulk-import form and the
+    CLI's `repoman bulk` command, so both read a course export the same way.
+    """
+    from repoman.intake import unzip
+
+    root = path
+    if path.is_file():  # a .zip: unpack once, work from there
+        root = extract_to
+        unzip(path, root)
+    entries = sorted(p for p in root.iterdir() if not p.name.startswith((".", "__MACOSX")))
+    jobs: list[tuple[Path, str]] = []
+    for entry in entries:
+        if entry.is_dir():
+            jobs.append((entry, entry.name))
+        elif entry.is_file():
+            single = root / f"_{entry.stem}"
+            single.mkdir(exist_ok=True)
+            entry.rename(single / entry.name)
+            jobs.append((single, entry.stem))
+    return jobs
 
 
 def batch_similarity(store: Store, run_ids: list[str]) -> list[dict]:

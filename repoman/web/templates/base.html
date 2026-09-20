@@ -38,7 +38,7 @@
       <span class="k">Submissions · {{ rail_rows|length }}</span>
       {% for r in rail_rows %}
       <a class="item" href="/runs/{{ r.run_id }}" {% if run_id is defined and r.run_id == run_id %}aria-current="page"{% endif %}>
-        <span class="name">{{ (r.sub.repoUrl or r.run_id)|replace('https://github.com/','') }}</span>
+        <span class="name">{{ r.display_name }}</span>
         {% if r.status.stage not in ('done','failed') %}<span class="stage">{{ r.status.stage }}</span>
         {% else %}<span class="mini">{% for s in r.states %}<span class="state state-{{ s }}">{{ mark(s) }}</span>{% endfor %}</span>{% endif %}
       </a>

@@ -1,7 +1,7 @@
 {% set running = r.status.stage not in ('done', 'failed') %}
 <tr id="row-{{ r.run_id }}" {% if running %}hx-get="/runs/{{ r.run_id }}/status" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
   <td class="name">
-    <a href="/runs/{{ r.run_id }}" style="view-transition-name: sub-{{ r.run_id }}">{{ (r.sub.repoUrl or r.run_id)|replace('https://github.com/','') }}</a>
+    <a href="/runs/{{ r.run_id }}" style="view-transition-name: sub-{{ r.run_id }}">{{ r.display_name }}</a>
     {% if r.sub.commitSha %}<span class="sha">at {{ r.sub.commitSha[:10] }}</span>{% endif %}
   </td>
   {% if running %}

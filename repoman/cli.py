@@ -39,10 +39,27 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--json", action="store_true", help="print findings as JSON instead of a table")
     run.add_argument("--no-claims", action="store_true", help="skip checking what the submission claims about itself")
 
+    bulk = sub.add_parser("bulk", help="investigate many submissions from one archive or directory of submissions")
+    bulk.add_argument("target", help="a .zip or a directory: one top-level folder (or loose file) per submission — "
+                      "the shape DOMjudge, Moodle and GitHub Classroom export as-is")
+    bulk.add_argument("--rubric", help="rubric file, as in `run`")
+    bulk.add_argument("--batch", help="add to an existing batch id, reusing its approved rubric")
+    bulk.add_argument("--skeleton", help="the assignment's starter file; feature probes then count only "
+                      "what each student wrote. Without one, RepoMan derives it from what the batch shares.")
+    bulk.add_argument("--from", dest="window_start", help="event window start, e.g. 2026-09-18")
+    bulk.add_argument("--until", dest="window_end", help="event window end")
+    bulk.add_argument("--blind", action="store_true", help="strip names/labels before each run")
+    bulk.add_argument("--workers", type=int, default=2, help="submissions investigated at once (default 2 — "
+                      "the model provider throttles the whole account, not per submission)")
+    bulk.add_argument("--data", default=os.environ.get("REPOMAN_DATA", "data"))
+    bulk.add_argument("--no-claims", action="store_true")
+
     args = parser.parse_args(argv)
     if args.command == "run" and not args.rubric and not args.batch:
         parser.error("give --rubric, or --batch to reuse a batch's approved rubric")
-    return _run(args) if args.command == "run" else 2
+    if args.command == "bulk" and not args.rubric and not args.batch:
+        parser.error("give --rubric, or --batch to reuse a batch's approved rubric")
+    return {"run": _run, "bulk": _bulk}.get(args.command, lambda _a: 2)(args)
 
 
 def _run(args) -> int:
@@ -95,6 +112,74 @@ def _run(args) -> int:
     _print_table(findings, rubric, submission, manifest, run_id, Path(args.data))
     _print_similarity(store, batch, run_id)
     print(f"  Batch {batch.id} — add another with: repoman run <target> --batch {batch.id}")
+    return 0
+
+
+def _bulk(args) -> int:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from repoman import pipeline
+    from repoman.probes import cpp
+
+    store = LocalStore(args.data)
+    if args.batch:
+        raw = store.get_json(f"batches/{args.batch}.json")
+        if not raw:
+            raise SystemExit(f"no batch {args.batch} in {args.data}")
+        batch = Batch.model_validate(raw)
+        rubric = Rubric.model_validate(store.get_json(f"rubrics/{batch.rubricId}.json"))
+    else:
+        rubric = _load_rubric(Path(args.rubric), store)
+        batch = Batch(name=f"bulk:{Path(args.target).name}", rubricId=rubric.id, blind=args.blind,
+                      eventWindow=(args.window_start, args.window_end) if args.window_start and args.window_end else None)
+        store.put_json(f"rubrics/{rubric.id}.json", rubric)
+
+    target = Path(args.target)
+    holding = store.local_dir(f"batches/{batch.id}/import/cli") if target.is_file() else target
+    entries = pipeline.expand_bulk_import(target, holding)
+    if not entries:
+        raise SystemExit(f"nothing to import in {target}")
+
+    if args.skeleton:
+        batch.baseline = Path(args.skeleton).read_text(encoding="utf-8", errors="replace")
+    elif not batch.baseline:
+        sources = [f.read_text(encoding="utf-8", errors="replace") for d, _ in entries for f in d.rglob("*") if f.suffix in cpp.CPP_SUFFIXES]
+        derived = cpp.derive_baseline(sources)
+        if derived:
+            batch.baseline = derived
+            print(f"Derived a {len(derived.splitlines())}-line skeleton from {len(entries)} submissions.", file=sys.stderr)
+
+    print(f"Investigating {len(entries)} submissions from {target} (batch {batch.id}, {args.workers} at a time)", file=sys.stderr)
+    store.put_json(f"batches/{batch.id}.json", batch)
+
+    def one(job):
+        d, label = job
+        run_id = pipeline.run_submission(store, batch.id, rubric, dir_path=str(d), event_window=batch.eventWindow,
+                                         check_claims=not args.no_claims, baseline=batch.baseline,
+                                         label=None if batch.blind else label)
+        return run_id, label
+
+    rows = []
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        futures = {pool.submit(one, job): job for job in entries}
+        for fut in as_completed(futures):
+            try:
+                run_id, label = fut.result()
+            except Exception as e:
+                print(f"  ✗ {futures[fut][1]}: {type(e).__name__}: {e}", file=sys.stderr)
+                continue
+            batch.runIds.append(run_id)
+            findings = [Finding.model_validate(f) for f in store.get_json(f"runs/{run_id}/findings.json", [])]
+            from repoman.core.types import coverage
+
+            v, n = coverage(findings, [r for r in rubric.requirements if r.verifiable])
+            flags = sorted({fl for f in findings for fl in f.flagged})
+            rows.append((label if not batch.blind else run_id[:6], v, n, flags))
+            print(f"  {v} of {n}  {label if not batch.blind else 'S-' + run_id[:6]}" + (f"  [{', '.join(flags)}]" if flags else ""))
+    store.put_json(f"batches/{batch.id}.json", batch)
+
+    print(f"\n{len(rows)} submissions investigated. Batch {batch.id} — open it in the web UI, or add more with:")
+    print(f"  repoman bulk <archive-or-dir> --batch {batch.id}")
     return 0
 
 

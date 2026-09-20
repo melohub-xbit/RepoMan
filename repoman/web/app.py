@@ -8,6 +8,7 @@ import io
 import os
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -46,6 +47,9 @@ tpl = Jinja2Templates(directory=HERE / "templates")
 store = make_store()
 
 STAGES = ["queued", "acquire", "probe", "verify", "claims", "contradict", "done"]
+# Runs wait in this pool. Sixty submissions at once must not mean sixty agents at once: each run already
+# fans out across requirements, and the model provider has one throttle for the whole account.
+RUN_POOL = ThreadPoolExecutor(max_workers=int(os.environ.get("REPOMAN_PARALLEL_RUNS", "2")))
 STATE_ORDER = {"CONTRADICTED": 0, "UNVERIFIED": 1, "PARTIAL": 2, "VERIFIED": 3}
 
 
@@ -101,6 +105,13 @@ def load_run(run_id: str) -> dict:
     p = f"runs/{run_id}/"
     sub = store.get_json(p + "submission.json") or {}
     batch = load_batch(sub["batchId"]) if sub else None
+    ident = (sub.get("identity") or {}) if sub else {}
+    if sub.get("repoUrl"):
+        name = sub["repoUrl"].replace("https://github.com/", "")
+    elif ident.get("team") and not (batch and batch.blind):
+        name = ident["team"]
+    else:
+        name = f"S-{run_id[:6]}"  # blind: a stable label with no identity in it
     rubric = load_rubric(batch) if batch else None
     findings = [Finding.model_validate(f) for f in store.get_json(p + "findings.json", [])]
     decisions = [Decision.model_validate(d) for d in store.get_json(p + "decisions.json", [])]
@@ -119,7 +130,7 @@ def load_run(run_id: str) -> dict:
     for f in findings:
         tally[f.state] = tally.get(f.state, 0) + 1
     return {
-        "run_id": run_id, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "said": said, "flags": flags, "tally": tally,
+        "run_id": run_id, "display_name": name, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "said": said, "flags": flags, "tally": tally,
         "probes": store.get_json(p + "probes.json", {}),
         # A run whose status.json has not been written yet (the thread has not started) is queued,
         # not a 500. model_validate(None) would raise here and take the whole queue page with it.
@@ -209,9 +220,10 @@ def index(request: Request):
 
 
 @app.post("/batches")
-def create_batch(name: str = Form(...), start: str = Form(""), end: str = Form(""), claims: str = Form("")):
+def create_batch(name: str = Form(...), start: str = Form(""), end: str = Form(""), claims: str = Form(""),
+                 blind: str = Form("")):
     b = Batch(name=name.strip() or "Untitled batch", eventWindow=(start, end) if start and end else None,
-              checkClaims=claims == "on")
+              checkClaims=claims == "on", blind=blind == "on")
     store.put_json(f"batches/{b.id}.json", b)
     return RedirectResponse(f"/batches/{b.id}/rubric", status_code=303)
 
@@ -309,41 +321,82 @@ async def rubric_approve(request: Request, batch_id: str):
 
 @app.post("/batches/{batch_id}/submissions")
 async def add_submission(batch_id: str, repo_url: str = Form(""), deploy_url: str = Form(""),
-                         report: UploadFile | None = None, zipfile: UploadFile | None = None, urls: str = Form("")):
+                         report: UploadFile | None = None, zipfile: UploadFile | None = None, urls: str = Form(""),
+                         bulk: UploadFile | None = None, skeleton: UploadFile | None = None):
+    """Four ways in, one queue out: a URL, a zip, a list of URLs, or one archive holding many submissions."""
     batch = load_batch(batch_id)
     rubric = load_rubric(batch)
     if rubric is None or not rubric.requirements:
         # Nothing to investigate against. The page already hides the form until a rubric exists;
         # this catches the direct POST rather than starting runs that can only fail.
         return RedirectResponse(f"/batches/{batch_id}/rubric", status_code=303)
+    if skeleton and skeleton.filename:
+        batch.baseline = (await skeleton.read()).decode("utf-8", errors="replace")
+        store.put_json(f"batches/{batch.id}.json", batch)
+
+    jobs: list[dict] = []  # each becomes one run
+    if bulk and bulk.filename:
+        jobs += await import_archive(batch, bulk)
     entries = [u.strip() for u in urls.splitlines() if u.strip()] if urls.strip() else [repo_url.strip()]
     entries = [e for e in entries if e] or ([""] if (zipfile and zipfile.filename) else [])
     for entry in entries:
-        run_id = new_id()
+        job = {"repo_url": entry or None, "zip_path": None, "report_path": None, "label": None}
+        run_id = job["run_id"] = new_id()
         prefix = f"runs/{run_id}/"
-        report_path = zip_path = None
         if report and report.filename:
-            report_path = str(store.local_dir(prefix) / "report.pdf")
-            Path(report_path).write_bytes(await report.read())
+            job["report_path"] = str(store.local_dir(prefix) / "report.pdf")
+            Path(job["report_path"]).write_bytes(await report.read())
         if zipfile and zipfile.filename:
-            zip_path = str(store.local_dir(prefix) / "submission.zip")
-            Path(zip_path).write_bytes(await zipfile.read())
-        store.put_json(prefix + "submission.json", {"id": run_id, "batchId": batch_id, "source": "zip" if zip_path else "github",
-                                                    "repoUrl": entry or None, "commitSha": "", "artifacts": []})
+            job["zip_path"] = str(store.local_dir(prefix) / "submission.zip")
+            Path(job["zip_path"]).write_bytes(await zipfile.read())
+        jobs.append(job)
+
+    precedents = [Precedent.model_validate(p) for p in store.get_json(f"precedents/{batch_id}.json", [])]
+    for job in jobs:
+        run_id, prefix = job["run_id"], f"runs/{job['run_id']}/"
+        store.put_json(prefix + "submission.json", {
+            "id": run_id, "batchId": batch_id, "commitSha": "", "artifacts": [], "repoUrl": job.get("repo_url"),
+            "source": "github" if job.get("repo_url") else ("dir" if job.get("dir_path") else "zip"),
+            "identity": {"team": job["label"]} if job.get("label") and not batch.blind else None})
         store.put_json(prefix + "status.json", RunStatus(stage="queued"))
         batch.runIds.append(run_id)
-        store.put_json(f"batches/{batch.id}.json", batch)
-        precedents = [Precedent.model_validate(p) for p in store.get_json(f"precedents/{batch_id}.json", [])]
-        threading.Thread(target=_run, args=(run_id, batch, rubric, entry or None, zip_path, report_path,
-                                            deploy_url.strip() or None, precedents), daemon=True).start()
+    store.put_json(f"batches/{batch.id}.json", batch)
+    for job in jobs:
+        RUN_POOL.submit(_run, job["run_id"], batch, rubric, job.get("repo_url"), job.get("zip_path"), job.get("report_path"),
+                        deploy_url.strip() or None, precedents, job.get("dir_path"), job.get("label"))
     return RedirectResponse(f"/batches/{batch_id}", status_code=303)
 
 
-def _run(run_id, batch, rubric, repo_url, zip_path, report_path, deploy_url, precedents):
+async def import_archive(batch: Batch, upload: UploadFile) -> list[dict]:
+    """One archive, many submissions: the shape DOMjudge, Moodle and GitHub Classroom export.
+
+    Every top-level folder is one submission and its name is the label (a student id, a team). Loose
+    files at the top level are one submission each. If the batch has no skeleton and there are three
+    or more C++ sources, the skeleton is derived from what they all share (`probes.cpp.derive_baseline`).
+    """
+    from repoman.probes import cpp
+
+    holding = store.local_dir(f"batches/{batch.id}/import/{new_id()}")
+    archive = holding.with_suffix(".zip")
+    archive.write_bytes(await upload.read())
+    entries = pipeline.expand_bulk_import(archive, holding)
+    archive.unlink(missing_ok=True)
+    jobs = [{"run_id": new_id(), "dir_path": str(d), "label": label} for d, label in entries]
+    if not batch.baseline:
+        sources = [f.read_text(encoding="utf-8", errors="replace")
+                   for j in jobs for f in Path(j["dir_path"]).rglob("*") if f.suffix in cpp.CPP_SUFFIXES]
+        derived = cpp.derive_baseline(sources)
+        if derived:
+            batch.baseline = derived
+    return jobs
+
+
+def _run(run_id, batch, rubric, repo_url, zip_path, report_path, deploy_url, precedents, dir_path=None, label=None):
     try:
         pipeline.run_submission(store, batch.id, rubric, run_id=run_id, repo_url=repo_url, zip_path=zip_path,
-                                report_path=report_path, deploy_url=deploy_url, event_window=batch.eventWindow,
-                                precedents=precedents, check_claims=batch.checkClaims)
+                                dir_path=dir_path, report_path=report_path, deploy_url=deploy_url,
+                                event_window=batch.eventWindow, precedents=precedents, check_claims=batch.checkClaims,
+                                baseline=batch.baseline, label=None if batch.blind else label)
     except Exception as e:  # a failed run is a visible row, never a missing one
         store.put_json(f"runs/{run_id}/status.json", RunStatus(stage="failed", detail=f"{type(e).__name__}: {e}"[:200]))
 

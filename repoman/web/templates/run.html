@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% set name = (sub.repoUrl or run_id)|replace('https://github.com/','') %}
-{% block title %}{{ name }} · RepoMan{% endblock %}
-{% block crumbs %}<a href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a><span class="sep">/</span><span style="view-transition-name: sub-{{ run_id }}">{{ name }}</span>{% endblock %}
+
+{% block title %}{{ display_name }} · RepoMan{% endblock %}
+{% block crumbs %}<a href="/batches/{{ batch.id }}" style="view-transition-name: batch-{{ batch.id }}">{{ batch.name }}</a><span class="sep">/</span><span style="view-transition-name: sub-{{ run_id }}">{{ display_name }}</span>{% endblock %}
 {% block topright %}<a class="btn ghost sm" href="/runs/{{ run_id }}/packet.md">Evidence packet</a>{% if sub.repoUrl %}<a class="btn ghost sm" href="{{ sub.repoUrl }}/tree/{{ sub.commitSha }}" target="_blank" rel="noopener">Repository ↗</a>{% endif %}{% endblock %}
 {% block body %}
 <div class="pagehead">
-  <div><h1>{{ name }}</h1>
+  <div><h1>{{ display_name }}</h1>
     <div class="meta">
       {% if sub.commitSha %}<span>at {{ sub.commitSha[:10] }}</span>{% endif %}
       {% if probes.get('deploy') %}<span>{{ probes.deploy.summary }}</span>{% endif %}
+      {% if probes.get('cpp') %}<span>{{ probes.cpp.summary }}</span>{% endif %}
       {% if manifest.finishedAt %}<span>investigated {{ manifest.finishedAt[:16].replace('T', ' ') }}</span>{% endif %}
     </div></div>
 </div>

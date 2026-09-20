@@ -66,7 +66,7 @@
     <ul class="failed">
       {% for x in cohort.claims_failed %}
       <li><span class="state state-{{ x.state }}">{{ mark(x.state) }}{{ 'looked · not found' if x.state == 'UNVERIFIED' else x.state|lower }}</span>
-          <a href="/runs/{{ x.run.run_id }}#said-{{ x.claim.id }}">{{ (x.run.sub.repoUrl or x.run.run_id)|replace('https://github.com/','') }}</a>
+          <a href="/runs/{{ x.run.run_id }}#said-{{ x.claim.id }}">{{ x.run.display_name }}</a>
           <span class="why">“{{ x.claim.statement }}”</span></li>
       {% endfor %}
     </ul>
@@ -90,14 +90,20 @@
   <div class="card panel" id="add">
     <h2>Add submissions</h2>
     <p class="lead">The repository is cloned at its current commit; every citation is pinned to it. Nothing in the submission is executed.</p>
-    <form method="post" action="/batches/{{ batch.id }}/submissions" enctype="multipart/form-data">
+    <form method="post" action="/batches/{{ batch.id }}/submissions" enctype="multipart/form-data" id="add-form">
       <label class="field"><span>GitHub repository URL</span><input name="repo_url" placeholder="https://github.com/team/project" autocomplete="off"></label>
       <div class="row">
         <label class="field"><span>Report or deck · PDF</span><input name="report" type="file" accept="application/pdf"></label>
         <label class="field"><span>Deployed URL</span><input name="deploy_url" placeholder="https://project.example.app" autocomplete="off"></label>
       </div>
-      <details><summary>Many at once</summary><label class="field"><span>One GitHub URL per line</span><textarea name="urls" rows="4"></textarea></label></details>
-      <div class="actions"><button class="btn" type="submit">Investigate →</button><span class="hint" style="font-size:13.5px;color:var(--graphite);font-style:italic">Takes a couple of minutes per submission. The row fills in as it runs.</span></div>
+      <details><summary>Many at once</summary>
+        <label class="field"><span>One GitHub URL per line</span><textarea name="urls" rows="4" placeholder="https://github.com/team-a/project
+https://github.com/team-b/project"></textarea></label>
+        <label class="field"><span>Bulk import · one .zip holding many submissions</span><input name="bulk" type="file" accept=".zip"><span class="hint">One row per top-level folder — a DOMjudge, Moodle or GitHub Classroom export works as-is. The folder name becomes the label (blind mode strips it).</span></label>
+        <label class="field"><span>Assignment skeleton · optional</span><input name="skeleton" type="file" accept=".cpp,.h,.hpp,.cc,.txt,text/*"><span class="hint">The starter file every submission began from. Feature counts then cover only lines the student wrote. Without one, and with three or more C++ submissions in a bulk import, RepoMan derives it from what the batch has in common.</span></label>
+      </details>
+      <div class="actions"><button class="btn" type="submit" id="add-submit">Investigate →</button><span class="hint" style="font-size:13.5px;color:var(--graphite);font-style:italic">Takes a couple of minutes per submission; a bulk import queues them a few at a time. Rows fill in as they run.</span></div>
+      <script>document.getElementById('add-form').addEventListener('submit', () => { const b = document.getElementById('add-submit'); b.disabled = true; b.textContent = 'Queuing…'; });</script>
     </form>
   </div>
   {% else %}<div></div>{% endif %}

@@ -88,7 +88,7 @@ class SubmissionIdentity(BaseModel):
 class Submission(BaseModel):
     id: str = Field(default_factory=new_id)
     batchId: str
-    source: Literal["github", "zip"]
+    source: Literal["github", "zip", "dir"]
     repoUrl: str | None = None
     commitSha: str
     artifacts: list[Artifact] = []
@@ -381,6 +381,8 @@ class Batch(BaseModel):
     rubricId: str | None = None
     runIds: list[str] = []
     checkClaims: bool = True  # also verify what each submission claims about itself (one more agent run per claim)
+    baseline: str | None = None  # the assignment skeleton; feature probes count only what the student wrote
+    blind: bool = False  # identity stripped before the run; submissions are labelled by a hash, never a name
     createdAt: str = Field(default_factory=now)
 
 

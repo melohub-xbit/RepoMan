@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from repoman.core.types import Evidence, FlagKind, Submission
-from repoman.probes import ProbeResult, deploy, deps, fork, git, injection, similarity, tests
+from repoman.probes import ProbeResult, cpp, deploy, deps, fork, git, injection, similarity, tests
 
 
 @dataclass
@@ -40,11 +40,15 @@ class ProbeReport:
 
 
 def run_probes(repo: Path, sub: Submission, *, pages: dict[str, str] | None = None,
-               event_window: tuple[str, str] | None = None, client=None) -> ProbeReport:
+               event_window: tuple[str, str] | None = None, client=None, baseline: str | None = None) -> ProbeReport:
+    """`baseline` is the assignment skeleton, when the batch has one; the cpp probe counts only what the student wrote."""
     report = ProbeReport()
 
     report.results["deps"] = deps.probe(repo, sub)
     report.results["tests"] = tests.probe(repo, sub)
+    cpp_result = cpp.probe(repo, sub, baseline=baseline)
+    if cpp_result.data.get("files"):  # only worth a card when there is C++ to talk about
+        report.results["cpp"] = cpp_result
     git_result = git.probe(repo, sub, event_window)
     report.results["git"] = git_result
 

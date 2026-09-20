@@ -62,7 +62,7 @@ Add it back with the transcription stage.
 type Submission = {
   id: string;
   batchId: string;            // the cohort / event this belongs to
-  source: "github" | "zip";
+  source: "github" | "zip" | "dir";   // dir: one folder of a bulk import (DOMjudge / Moodle / Classroom export)
   repoUrl?: string;           // for permalinks; absent for zip
   commitSha: string;          // the pinned checkout every file_range refers to
   artifacts: Artifact[];
