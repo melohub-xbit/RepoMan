@@ -24,6 +24,10 @@
       </select>
       <input type="number" name="weight-{{ id }}" value="{{ (r.weight|int if r.weight == r.weight|int else r.weight) if r else 10 }}" min="0" step="0.5" aria-label="Marks" {% if kind == 'levels' %}readonly{% endif %}>
     </div>
+    <label class="gate" {% if kind != 'check' %}hidden{% endif %}>
+      <input type="checkbox" name="gate-{{ id }}" {% if r and r.gate %}checked{% endif %} {% if kind != 'check' %}disabled{% endif %}>
+      Eligibility gate<span class="hint">Submissions where this isn't met sort as "not eligible" — never hidden, never scored down.</span>
+    </label>
     <div class="levels" {% if kind != 'levels' %}hidden{% endif %}>
       {% for l in (r.scale.levels if r else []) %}
       <div class="lvl">
@@ -42,7 +46,7 @@
       {% if not r %}typed in by you{% elif r.proposedBy == 'repoman' %}proposed by RepoMan: edit or accept{% elif not r.verifiable %}stays with you{% elif r.sourceSpan %}from your rubric{% else %}typed in by you{% endif %}
     </div>
   </td>
-  <td class="del"><label class="del"><input type="checkbox" name="delete-{{ id }}">remove</label></td>
+  <td class="del"><label class="del"><input type="checkbox" name="delete-{{ id }}">remove</label>{% if r and r.gate %}<div class="gate-badge" title="Eligibility gate">GATE</div>{% endif %}</td>
 </tr>
 {% endmacro %}
 
@@ -125,6 +129,10 @@
       box.querySelectorAll('input').forEach(i => i.disabled = !on);  // hidden levels neither submit nor block validation
       if (on && !box.querySelector('.lvl')) seedLevels(box, +w.value || 10);
       syncWeight(tr);
+      const gate = tr.querySelector('.gate'), gateOn = e.target.value === 'check';
+      gate.hidden = !gateOn;
+      gate.querySelector('input').disabled = !gateOn;
+      if (!gateOn) gate.querySelector('input').checked = false;  // only a check-scale line can be a gate
     }
     if (e.target.name.startsWith('lp-')) syncWeight(tr);
   });

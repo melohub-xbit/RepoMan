@@ -134,6 +134,14 @@ class Requirement(BaseModel):
     verifiable: bool
     unverifiableReason: str | None = None
     proposedBy: Literal["evaluator", "repoman"] = "evaluator"
+    gate: bool = False  # a hard eligibility line: submissions that fail it are pre-sorted out, not scored down
+
+    @model_validator(mode="after")
+    def _gate_needs_a_checkable_check(self):
+        if self.gate and (not self.verifiable or self.scale.kind != "check"):
+            raise ValueError("gate requires verifiable=True and scale.kind == \"check\" — a gate must be "
+                             "something RepoMan can actually check, and binary")
+        return self
 
 
 class Rubric(BaseModel):
@@ -291,6 +299,7 @@ class RequirementDraft(BaseModel):
     verifiable: bool
     unverifiableReason: str | None = None
     proposedBy: Literal["evaluator", "repoman"] = "evaluator"
+    gate: bool = False
 
 
 class CompiledRubric(BaseModel):
@@ -384,6 +393,18 @@ class Batch(BaseModel):
     baseline: str | None = None  # the assignment skeleton; feature probes count only what the student wrote
     blind: bool = False  # identity stripped before the run; submissions are labelled by a hash, never a name
     createdAt: str = Field(default_factory=now)
+
+
+def gate_status(findings: list[Finding], requirements: list[Requirement]) -> dict[str, bool | None]:
+    """One entry per gate requirement: True (met), False (not met), None (no finding yet).
+
+    Never a filter, never a drop — the caller decides what "not met" means for sorting or display.
+    A submission is eligible when every value here is True; `None` while a run is still in progress
+    is "not yet known", not "failed".
+    """
+    by_req = {f.requirementId: f for f in findings if f.subject == "requirement"}
+    return {r.id: (by_req[r.id].state == "VERIFIED" if r.id in by_req else None)
+            for r in requirements if r.gate}
 
 
 def coverage(findings: list[Finding], requirements: list[Requirement]) -> tuple[int, int]:

@@ -169,6 +169,14 @@ a.btn { text-decoration: none; }
 @media (hover: hover) and (pointer: fine) { .queue tbody tr:hover td { background: color-mix(in oklab, var(--pencil) 4%, transparent); } }
 .queue td.name a { color: var(--ink); font-weight: 600; font-size: 15.5px; }
 .queue td.name .sha { display: block; font-family: var(--mono); font-size: 11.5px; color: var(--graphite); margin-top: 3px; }
+.gate-chip { display: inline-block; margin-left: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; vertical-align: middle; }
+.gate-chip.yes { color: var(--verified); border: 1px solid var(--verified); }
+.gate-chip.no { color: var(--contradicted); border: 1px solid var(--contradicted); }
+.gates-cohort { padding: 4px 16px 14px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+.gates-cohort .lead { margin: 0 0 4px; }
+.gates-cohort .gate-list { font-size: 12.5px; color: var(--graphite); margin: 0; }
+.gate-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; margin: 0 0 8px; }
+.gate-filter input { accent-color: var(--pencil); }
 .queue .cov { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
 .queue .cov b { font-weight: 600; }
 .queue .cov .bar { display: block; height: 3px; width: 88px; margin-top: 6px; background: var(--rule); border-radius: 2px; overflow: hidden; }
@@ -250,12 +258,18 @@ a.btn { text-decoration: none; }
 .compiled .kind select { background: var(--card); border: 1px solid var(--rule-strong); border-radius: 4px; font-family: var(--mono); font-size: 12.5px; padding: 6px 8px; color: var(--ink); }
 .compiled .kind input[readonly] { color: var(--graphite); background: var(--paper-2); }
 .compiled .levels { margin-top: 10px; display: grid; gap: 6px; }
+.compiled .levels[hidden] { display: none; }  /* [hidden] loses to a class selector's display:grid without this */
 .compiled .lvl { display: grid; grid-template-columns: 6ch 1fr 2fr auto; gap: 6px; align-items: center; }
 .compiled .lvl input { width: 100%; margin: 0; background: var(--card); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 5px 7px; font-size: 13.5px; }
 .compiled .lvl input[type="number"] { font-family: var(--mono); font-size: 13px; text-align: right; }
 .compiled .lvl input[type="text"] { font-family: var(--sans); font-weight: 400; }
 .compiled .lvl .x { appearance: none; background: transparent; border: 0; color: var(--graphite); cursor: pointer; font-size: 16px; padding: 0 4px; }
 .compiled .lvl .x:hover { color: var(--contradicted); }
+.compiled .gate { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer; }
+.compiled .gate[hidden] { display: none; }
+.compiled .gate input { margin-top: 2px; accent-color: var(--pencil); }
+.compiled .gate .hint { display: block; color: var(--graphite); font-size: 12px; font-weight: 400; }
+.gate-badge { margin-top: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; font-weight: 600; color: var(--contradicted); border: 1px solid var(--contradicted); border-radius: 3px; padding: 2px 5px; display: inline-block; }
 .compiled .add-level { justify-self: start; appearance: none; background: transparent; border: 0; color: var(--pencil); cursor: pointer; font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 0; }
 .rubric-in > summary { cursor: pointer; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--graphite); list-style: none; padding: 10px 0; }
 .rubric-in > summary::before { content: "▸ "; } .rubric-in[open] > summary::before { content: "▾ "; }
@@ -285,6 +299,7 @@ a.btn { text-decoration: none; }
 .claim .band .state { font-size: 13px; }
 .claim .band .state .mark { width: 17px; height: 17px; }
 .claim .band .pos { margin-left: auto; color: var(--graphite); text-transform: uppercase; }
+.claim .band .gate-badge { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; font-weight: 600; color: var(--contradicted); border: 1px solid var(--contradicted); border-radius: 3px; padding: 2px 6px; }
 .claim.s-VERIFIED .band { background: color-mix(in oklab, var(--verified) 9%, transparent); }
 .claim.s-PARTIAL .band { background: color-mix(in oklab, var(--partial) 11%, transparent); }
 .claim.s-UNVERIFIED .band { background: color-mix(in oklab, var(--unverified) 9%, transparent); }

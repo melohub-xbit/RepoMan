@@ -23,7 +23,7 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import TextLexer, get_lexer_for_filename
 from pygments.util import ClassNotFound
 
-from repoman.core.types import (Batch, Claim, Decision, Finding, Level, Precedent, Requirement, Rubric, RunStatus, Scale,
+from repoman.core.types import (Batch, Claim, Decision, Finding, gate_status, Level, Precedent, Requirement, Rubric, RunStatus, Scale,
                                 SourceSpan, coverage, new_id)
 from repoman.store import make_store
 
@@ -125,12 +125,16 @@ def load_run(run_id: str) -> dict:
     self_claims = [Claim.model_validate(c) for c in store.get_json(p + "claims.json", [])]
     said = [{"claim": c, "finding": by_req.get(c.id), "pos": i + 1} for i, c in enumerate(self_claims)]
     verified, verifiable = coverage(findings, reqs)
+    # Eligibility: None means "no gates on this rubric" or "still running" — never rendered as a failure.
+    gates = gate_status(findings, reqs)
+    eligible = None if not gates or None in gates.values() else all(gates.values())
     scores = [d.score for d in decisions if d.score is not None]
     tally = {}
     for f in findings:
         tally[f.state] = tally.get(f.state, 0) + 1
     return {
         "run_id": run_id, "display_name": name, "sub": sub, "batch": batch, "rubric": rubric, "claims": claims, "said": said, "flags": flags, "tally": tally,
+        "gates": gates, "eligible": eligible,
         "probes": store.get_json(p + "probes.json", {}),
         # A run whose status.json has not been written yet (the thread has not started) is queued,
         # not a 500. model_validate(None) would raise here and take the whole queue page with it.
@@ -163,12 +167,21 @@ def cohort(rows: list[dict], rubric: Rubric | None) -> dict | None:
                         "so_what": (f"{counts[worst]} of {len(states)} " + {"PARTIAL": "partial", "UNVERIFIED": "looked · not found",
                                                                             "CONTRADICTED": "contradicted"}[worst])
                         if worst and counts[worst] else f"all {len(states)} verified"})
+    gate_reqs = [req for req in rubric.requirements if req.gate]
+    gates = None
+    if gate_reqs:
+        met = sum(1 for r in done if r["eligible"] is True)
+        not_met = sum(1 for r in done if r["eligible"] is False)
+        gates = {"requirements": gate_reqs, "eligible": met, "not_eligible": not_met,
+                 "pending": len(done) - met - not_met}
+
     said = [(r, c) for r in done for c in r["said"] if c["finding"]]
     held = sum(1 for _, c in said if c["finding"].state == "VERIFIED")
     failed = [{"run": r, "claim": c["claim"], "state": c["finding"].state} for r, c in said
               if c["finding"].state in ("CONTRADICTED", "UNVERIFIED")]
     failed.sort(key=lambda x: STATE_ORDER[x["state"]])
-    return {"n": len(done), "per_req": per_req, "claims_total": len(said), "claims_held": held, "claims_failed": failed[:6]}
+    return {"n": len(done), "per_req": per_req, "claims_total": len(said), "claims_held": held, "claims_failed": failed[:6],
+            "gates": gates}
 
 
 def queue_rows(batch: Batch, rubric: Rubric | None) -> list[dict]:
@@ -181,7 +194,9 @@ def queue_rows(batch: Batch, rubric: Rubric | None) -> list[dict]:
         r["sort"] = (0 if r["flags"] else 1, worst, r["verified"] - r["verifiable"])
         r["states"] = sorted(states, key=STATE_ORDER.get)
         rows.append(r)
-    rows.sort(key=lambda r: (r["status"].stage == "done", r["sort"]))
+    # Gates are the pre-read sort: a submission that fails one waits behind every eligible or
+    # still-pending one, but is never removed — export, decisions and the page itself are unaffected.
+    rows.sort(key=lambda r: (r["status"].stage == "done", r["eligible"] is False, r["sort"]))
     return rows
 
 
@@ -307,11 +322,15 @@ async def rubric_approve(request: Request, batch_id: str):
         prev = next((r for r in old.requirements if r.id == rid), None)
         scale = scale_from_form(form, rid)
         weight = max(l.points for l in scale.levels) if scale.kind == "levels" else float(form.get(f"weight-{rid}") or 0)
+        verifiable = form.get(f"verifiable-{rid}") == "on"
+        # Clamped, not trusted: the form disables the checkbox for a non-"check" scale, but a raw
+        # POST could still set it, and a gate must stay a real check (docs/03) or the row 500s.
+        gate = form.get(f"gate-{rid}") == "on" and verifiable and scale.kind == "check"
         rubric.requirements.append(Requirement(
             id=rid, rubricId=rubric.id, title=form.get(f"title-{rid}", "").strip(),
             statement=form.get(f"statement-{rid}", "").strip(), weight=weight, scale=scale,
             sourceSpan=prev.sourceSpan if prev else None,
-            verifiable=form.get(f"verifiable-{rid}") == "on",
+            verifiable=verifiable, gate=gate,
             unverifiableReason=prev.unverifiableReason if prev else None,
             proposedBy="evaluator",  # once the human edits and approves, it is theirs
         ))
@@ -514,12 +533,13 @@ def export_csv(batch_id: str):
     batch = load_batch(batch_id)
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["submission", "requirement", "weight", "state", "confidence", "evaluator_score", "evaluator_level", "note", "verified", "verifiable"])
+    w.writerow(["submission", "eligible", "requirement", "gate", "weight", "state", "confidence", "evaluator_score", "evaluator_level", "note", "verified", "verifiable"])
     for r in queue_rows(batch, load_rubric(batch)):
+        elig = {None: "", True: "yes", False: "no"}[r["eligible"]]
         for c in r["claims"]:
             f, d = c["finding"], c["decision"]
-            w.writerow([r["sub"].get("repoUrl") or r["run_id"], c["req"].title, c["req"].weight,
-                        f.state if f else "not checked", f.confidence if f else "", d.score if d else "",
+            w.writerow([r["sub"].get("repoUrl") or r["run_id"], elig, c["req"].title, "yes" if c["req"].gate else "",
+                        c["req"].weight, f.state if f else "not checked", f.confidence if f else "", d.score if d else "",
                         d.level if d else "", d.note if d else "", r["verified"], r["verifiable"]])
     return Response(out.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{batch.name}.csv"'})
@@ -563,11 +583,13 @@ def feedback(run_id: str):
 @app.get("/runs/{run_id}/packet.md")
 def packet(run_id: str):
     r = load_run(run_id)
+    elig_line = {None: "", True: "**Meets every eligibility gate.**", False: "**Fails an eligibility gate.**"}[r["eligible"]]
     lines = [f"# Evidence packet — {r['sub'].get('repoUrl') or run_id}", f"Commit `{r['sub'].get('commitSha', '')}` · "
-             f"{r['verified']} of {r['verifiable']} requirements have verified evidence", ""]
+             f"{r['verified']} of {r['verifiable']} requirements have verified evidence"
+             + (f" · {elig_line}" if elig_line else ""), ""]
     for c in r["claims"]:
         req, f, d = c["req"], c["finding"], c["decision"]
-        lines += [f"## {req.title} — {req.weight} marks", f"_{req.statement}_", ""]
+        lines += [f"## {'[GATE] ' if req.gate else ''}{req.title} — {req.weight} marks", f"_{req.statement}_", ""]
         if not req.verifiable:
             lines += [f"Not checked by RepoMan: {req.unverifiableReason}", ""]
         elif f:

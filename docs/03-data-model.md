@@ -108,11 +108,26 @@ type Requirement = {
   verifiable: boolean;        // false = "creativity"; stays 100% human
   unverifiableReason?: string;
   proposedBy: "evaluator" | "repoman";   // "repoman" when the compiler decomposed a holistic line
+  gate: boolean;               // a hard eligibility line ("must use AWS Bedrock", "must compile").
+                                // Only meaningful on a verifiable, scale:"check" requirement. A
+                                // submission whose gated finding is not VERIFIED is sorted as
+                                // ineligible on the queue — never dropped, never hidden, never scored:
+                                // the evaluator still sees it and can override.
 };
 ```
 
 `verifiable: false` requirements are **shown to the evaluator and never sent to a
 model**. Pretending to check them is the fastest way to lose trust.
+
+`gate` answers a different question than `scale` does. `scale` is how the
+human scores a requirement once they read the evidence; `gate` is whether
+RepoMan's own finding is enough to say "look at this one first" or "this one
+can wait" — the sorting a judge does before reading anything, for a batch too
+large to read start to finish. A gate is never a rejection: `coverage()` and
+every export still include gated-and-failed submissions, and `Decision` can
+override a gate exactly like any other finding. Setting `gate: true` on a
+requirement whose `scale` is not `"check"`, or that is not `verifiable`, is
+rejected — a gate is binary and it must be something RepoMan can actually check.
 
 `scale` is the evaluator's instrument, not RepoMan's. Level descriptions ("some
 tests" / "comprehensive tests") are band language; feeding them to the verify

@@ -46,6 +46,7 @@ you did not split keeps `proposedBy: "evaluator"`.
 6. `sourceQuote` must be copied verbatim from the rubric text — the exact words the requirement \
 came from, so the evaluator can trace it back. Never paraphrase it.
 7. Do not invent requirements the rubric does not contain, and do not drop ones it does.
+8. Set `gate: true` only on a "check"-scale requirement that reads as a hard eligibility bar rather than a graded criterion — the rubric says "must", "required", "only considered if", "to be eligible", or names a specific mandatory technology ("must use AWS Bedrock", "must be built during the event", "submission must compile"). Most rubric lines are not gates: a gate marks a pre-filter a judge would apply before reading anything, not a point-scoring line. When in doubt, leave `gate` false — the evaluator can turn one on later with one click, and a wrongly-gated line hides nothing (docs/03) but still sorts a real submission out of the "read this first" order.
 
 You never score anything. You are producing the checklist a human will approve and then grade with.\
 """
@@ -76,6 +77,9 @@ def compile_rubric(source_text: str, artifact_kinds: list[str] | None = None) ->
             verifiable=draft.verifiable,
             unverifiableReason=(draft.unverifiableReason or None) if not draft.verifiable else None,
             proposedBy=draft.proposedBy,
+            # A gate must be a real check (docs/03); untrusted model output is clamped, never trusted
+            # to satisfy the invariant itself — the Requirement validator would reject it outright.
+            gate=bool(draft.gate and draft.verifiable and draft.scale.kind == "check"),
         ))
     return rubric
 

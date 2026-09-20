@@ -48,6 +48,12 @@
 {% if cohort %}
 <div class="section"><span class="k">Across the batch<span class="why">{{ cohort.n }} submissions investigated · counts, not grades</span></span>
 <div class="card">
+  {% if cohort.gates %}
+  <div class="gates-cohort">
+    <p class="lead"><b>{{ cohort.gates.eligible }}</b> of {{ cohort.n }} meet every eligibility gate{% if cohort.gates.not_eligible %} · <b>{{ cohort.gates.not_eligible }}</b> do not{% endif %}{% if cohort.gates.pending %} · {{ cohort.gates.pending }} still running{% endif %}.</p>
+    <p class="gate-list">Gates: {% for g in cohort.gates.requirements %}{{ g.title }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  </div>
+  {% endif %}
   <table class="cohort">
     <tbody>
     {% for row in cohort.per_req %}
@@ -76,7 +82,8 @@
 </div></div>
 {% endif %}
 
-<div class="section"><span class="k">Queue<span class="why">ordered by where a human is needed: flagged, then contradicted, then least evidence</span></span>
+<div class="section"><span class="k">Queue<span class="why">ordered by where a human is needed: flagged, then contradicted, then least evidence{% if cohort and cohort.gates %}; not-eligible submissions sort last, never hidden{% endif %}</span></span>
+  {% if cohort and cohort.gates %}<label class="gate-filter"><input type="checkbox" id="eligible-only"> Show only eligible</label>{% endif %}
 <div class="card">
 <table class="queue">
   <thead><tr><th>Submission</th><th>Evidence found</th><th class="hide-sm">Findings</th><th class="hide-sm">Flags</th><th>Decided</th><th></th></tr></thead>
@@ -124,5 +131,10 @@ https://github.com/team-b/project"></textarea></label>
 {% block script %}
 <script>
   document.body.addEventListener('run-finished', () => { if (!document.querySelector('.stage.running')) setTimeout(() => location.reload(), 600); });
+  document.getElementById('eligible-only')?.addEventListener('change', e => {
+    document.querySelectorAll('.queue tbody tr').forEach(tr => {
+      tr.style.display = (e.target.checked && tr.querySelector('.gate-chip.no')) ? 'none' : '';
+    });
+  });
 </script>
 {% endblock %}

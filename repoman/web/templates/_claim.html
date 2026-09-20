@@ -5,6 +5,7 @@
     {% if not req.verifiable %}<span class="state state-none">{{ mark('none') }}Stays with you</span>
     {% elif f %}<span class="state state-{{ f.state }}">{{ mark(f.state) }}{{ 'Looked · not found' if f.state == 'UNVERIFIED' else f.state|capitalize }}</span>
     {% else %}<span class="state state-none">{{ mark('none') }}No finding</span>{% endif %}
+    {% if req.gate %}<span class="gate-badge" title="Eligibility gate: not being VERIFIED sorts this submission as not eligible">GATE</span>{% endif %}
     <span class="pos">Requirement {{ c.pos }} of {{ c.total }} · {{ req.weight|int if req.weight == req.weight|int else req.weight }} marks</span>
   </div>
   <div class="body">
