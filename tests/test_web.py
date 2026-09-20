@@ -296,3 +296,15 @@ def test_healthz_is_reachable_without_the_token(client, monkeypatch):
     monkeypatch.setenv("REPOMAN_TOKEN", "secret")
     assert c.get("/healthz").status_code == 200
     assert c.get("/batches").status_code == 401
+
+
+def test_a_failed_compile_is_a_message_not_a_500(client, monkeypatch):
+    c, store = client
+    from repoman.web import app as web
+
+    def boom(*a, **k):
+        raise RuntimeError("Operation not allowed")
+    monkeypatch.setattr(web.pipeline, "compile_rubric", boom)
+    r = c.post("/batches/b1/rubric/compile", data={"source": "1. Tests — 20 marks"}, follow_redirects=True)
+    assert r.status_code == 200 and "model unavailable" in r.text and "Operation not allowed" in r.text
+    assert "add-row" in r.text  # the hand-typed path is still offered

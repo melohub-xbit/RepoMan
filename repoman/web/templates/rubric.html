@@ -54,6 +54,8 @@
   {% endif %}
 </div>
 
+{% if error %}<div class="flags" role="alert"><span class="state state-CONTRADICTED">{{ mark('CONTRADICTED') }}model unavailable</span><span class="why">{{ error }}</span></div>{% endif %}
+
 <details class="rubric-in card" {% if not reqs %}open{% endif %}>
   <summary>{{ 'Paste more of the rubric' if reqs else 'Paste the rubric' }}</summary>
   <div class="twocol" style="padding:0 24px 24px">

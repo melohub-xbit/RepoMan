@@ -8,6 +8,7 @@ import io
 import os
 import secrets
 import threading
+from urllib.parse import quote
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -237,9 +238,9 @@ def batch_page(request: Request, batch_id: str):
 
 
 @app.get("/batches/{batch_id}/rubric", response_class=HTMLResponse)
-def rubric_page(request: Request, batch_id: str):
+def rubric_page(request: Request, batch_id: str, error: str = ""):
     batch = load_batch(batch_id)
-    return render(request, "rubric.html", batch=batch, rubric=load_rubric(batch))
+    return render(request, "rubric.html", batch=batch, rubric=load_rubric(batch), error=error[:300])
 
 
 def save_rubric(batch: Batch, rubric: Rubric) -> None:
@@ -253,7 +254,11 @@ def save_rubric(batch: Batch, rubric: Rubric) -> None:
 def rubric_compile(batch_id: str, source: str = Form(...)):
     """Compile pasted prose and append the result to whatever the editor already holds."""
     batch = load_batch(batch_id)
-    compiled = pipeline.compile_rubric(source, ["repo", "readme", "report", "deploy"])
+    try:
+        compiled = pipeline.compile_rubric(source, ["repo", "readme", "report", "deploy"])
+    except Exception as e:  # the model is the only thing that can fail here; the editor still works without it
+        msg = f"The model could not compile the rubric ({type(e).__name__}: {str(e)[:160]}). Add requirements by hand below, or try again."
+        return RedirectResponse(f"/batches/{batch_id}/rubric?error={quote(msg)}", status_code=303)
     old = load_rubric(batch)
     if old is None:
         save_rubric(batch, compiled)
