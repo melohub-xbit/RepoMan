@@ -395,7 +395,10 @@ async def import_archive(batch: Batch, upload: UploadFile) -> list[dict]:
     """
     from repoman.probes import cpp
 
-    holding = store.local_dir(f"batches/{batch.id}/import/{new_id()}")
+    # Deliberately NOT under "batches/<id>/..." — store.list("batches") globs that prefix
+    # recursively for every batch's JSON, and a bulk import's unpacked files would be
+    # picked up and fail Batch.model_validate. Keep the two namespaces disjoint.
+    holding = store.local_dir(f"imports/{batch.id}/{new_id()}")
     archive = holding.with_suffix(".zip")
     archive.write_bytes(await upload.read())
     entries = pipeline.expand_bulk_import(archive, holding)

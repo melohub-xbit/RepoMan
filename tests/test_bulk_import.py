@@ -126,3 +126,29 @@ def test_blind_batch_strips_labels(bulk_batch, monkeypatch):
     assert sub["identity"] is None
     page = c.get(f"/runs/{b2.runIds[0]}").text
     assert "real_student_name" not in page
+
+
+def test_bulk_import_never_writes_under_the_batches_prefix(bulk_batch, monkeypatch):
+    """store.list("batches") globs that prefix recursively for every batch's JSON (app.py: index()).
+
+    A bulk import's unpacked files must live somewhere store.list("batches") never sees them, or
+    the very next visit to "All batches" 500s trying to Batch.model_validate a student's .cpp file.
+    """
+    c, store = bulk_batch
+    from repoman.web import app as web
+    monkeypatch.setattr(web.pipeline, "run_submission", lambda *a, **k: "stub")
+
+    archive = make_archive({"student_a": STUDENT_A, "student_b": STUDENT_B})
+    c.post("/batches/bulk1/submissions", files={"bulk": ("submissions.zip", archive, "application/zip")},
+          data={"repo_url": "", "urls": ""}, follow_redirects=False)
+    for _ in range(30):
+        if len(Batch.model_validate(store.get_json("batches/bulk1.json")).runIds) == 2:
+            break
+        time.sleep(0.1)
+
+    for key in store.list("batches"):
+        assert not key.startswith("batches/bulk1/"), f"bulk import wrote under the batches/ prefix: {key}"
+        Batch.model_validate(store.get_json(key))  # every key list("batches") returns must parse
+
+    # exactly the two Batch listing route depends on: this batch, plus whatever the base fixture writes
+    assert "batches/bulk1.json" in store.list("batches")

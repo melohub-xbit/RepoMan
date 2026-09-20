@@ -135,7 +135,9 @@ def _bulk(args) -> int:
         store.put_json(f"rubrics/{rubric.id}.json", rubric)
 
     target = Path(args.target)
-    holding = store.local_dir(f"batches/{batch.id}/import/cli") if target.is_file() else target
+    # Same reason as the web handler: never write under "batches/<id>/...", which
+    # store.list("batches") globs recursively for Batch JSON.
+    holding = store.local_dir(f"imports/{batch.id}/cli") if target.is_file() else target
     entries = pipeline.expand_bulk_import(target, holding)
     if not entries:
         raise SystemExit(f"nothing to import in {target}")
