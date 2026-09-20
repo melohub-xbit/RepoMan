@@ -1,29 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Batches · RepoMan{% endblock %}
 {% block crumbs %}<span>All batches</span>{% endblock %}
+{% block topright %}
+<button class="btn sm" type="button" onclick="var d=document.getElementById('new-batch'); d.open=true; d.scrollIntoView({behavior:'smooth', block:'start'}); d.querySelector('input[name=name]').focus()">+ New batch</button>
+{% endblock %}
 {% block body %}
 <div class="pagehead">
   <div><h1>Batches</h1><div class="meta"><span>One rubric applied to many submissions. Start with the rubric; add submissions once it's approved.</span></div></div>
 </div>
-<div class="twocol">
-  <div>
-    {% if batches %}
-    <ul class="batches card">
-      {% for b in batches %}
-      <li>
-        <a class="name" href="/batches/{{ b.id }}" style="view-transition-name: batch-{{ b.id }}">{{ b.name }}</a>
-        <span class="meta">{{ b.runIds|length }} submission{{ '' if b.runIds|length == 1 else 's' }}{% if b.eventWindow %} · {{ b.eventWindow[0] }} → {{ b.eventWindow[1] }}{% endif %}</span>
-        <a class="btn ghost sm" href="/batches/{{ b.id }}">Open</a>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="card empty"><b>No batches yet</b>Name one on the right, then paste the rubric. Submissions come after the rubric is approved.</div>
-    {% endif %}
-  </div>
-  <div class="card panel">
-    <h2>New batch</h2>
-    <p class="lead">A course, a hackathon track, a hiring round.</p>
+
+{% if batches %}
+<div class="section"><span class="k">{{ batches|length }} batch{{ '' if batches|length == 1 else 'es' }}</span>
+<ul class="batches card">
+  {% for row in rows %}
+  {% set b = row.batch %}{% set r = row.rubric %}
+  <li>
+    <div class="main">
+      <a class="name" href="/batches/{{ b.id }}" style="view-transition-name: batch-{{ b.id }}">{{ b.name }}</a>
+      <div class="tags">
+        <span class="tag">{{ b.runIds|length }} submission{{ '' if b.runIds|length == 1 else 's' }}</span>
+        {% if not b.rubricId %}<span class="tag warn">no rubric yet</span>
+        {% elif r %}<span class="tag">{{ r.requirements|selectattr('verifiable')|list|length }} requirement{{ '' if r.requirements|selectattr('verifiable')|list|length == 1 else 's' }}</span>{% endif %}
+        {% if b.eventWindow %}<span class="tag mono">{{ b.eventWindow[0] }} → {{ b.eventWindow[1] }}</span>{% endif %}
+        {% if b.blind %}<span class="tag">blind</span>{% endif %}
+        {% if not b.checkClaims %}<span class="tag">claims off</span>{% endif %}
+      </div>
+    </div>
+    <div class="row-actions">
+      <a class="btn ghost sm" href="{{ '/batches/' + b.id + '/rubric' if not b.rubricId else '/batches/' + b.id }}">{{ 'Add rubric →' if not b.rubricId else 'Open →' }}</a>
+      <form class="delete-batch" method="post" action="/batches/{{ b.id }}/delete" data-name="{{ b.name }}" data-count="{{ b.runIds|length }}">
+        <button class="btn ghost sm danger" type="submit" title="Delete this batch">Delete</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+</div>
+{% else %}
+<div class="card empty"><b>No batches yet</b>Create one below, then paste the rubric. Submissions come after the rubric is approved.</div>
+{% endif %}
+
+<details id="new-batch" class="rubric-in card" {% if not batches %}open{% endif %} style="margin-top:22px">
+  <summary>New batch</summary>
+  <div style="padding:0 24px 24px">
+    <p class="lead" style="margin:0 0 16px">A course, a hackathon track, a hiring round.</p>
     <form method="post" action="/batches">
       <label class="field"><span>Name</span><input name="name" required placeholder="CS402 Final Projects · Fall 2026" autocomplete="off"></label>
       <label class="field"><span>Event window · start</span><input name="start" type="date"></label>
@@ -33,5 +53,20 @@
       <div class="actions"><button class="btn" type="submit">Create · next: rubric →</button></div>
     </form>
   </div>
-</div>
+</details>
+{% endblock %}
+{% block script %}
+<script>
+  // A batch's own name can contain a quote (O'Brien's Class) — built as a template literal from
+  // a data attribute (already HTML-entity-decoded by the DOM), never interpolated into JS source,
+  // so no name can break out of the confirm() string the way an inline onsubmit with the name
+  // spliced straight into a quoted JS literal would.
+  document.addEventListener('submit', e => {
+    const f = e.target.closest('.delete-batch');
+    if (!f) return;
+    const n = Number(f.dataset.count), name = f.dataset.name;
+    const msg = `Delete “${name}”? This removes ${n} submission${n === 1 ? '' : 's'} and every finding in ${n === 1 ? 'it' : 'them'}. This cannot be undone.`;
+    if (!confirm(msg)) e.preventDefault();
+  });
+</script>
 {% endblock %}

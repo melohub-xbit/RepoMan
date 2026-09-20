@@ -231,7 +231,12 @@ def landing(request: Request):
 def index(request: Request):
     batches = [Batch.model_validate(store.get_json(k)) for k in store.list("batches")]
     batches.sort(key=lambda b: b.createdAt, reverse=True)
-    return render(request, "index.html", batches=batches)
+    # Cheap per-row status for the listing: a rubric's requirement count, not a full run analysis.
+    # Loading every run here would mean an index page that gets slower as a batch fills with
+    # submissions; the batch page itself is where that cost belongs.
+    rubrics = {b.rubricId: load_rubric(b) for b in batches if b.rubricId}
+    rows = [{"batch": b, "rubric": rubrics.get(b.rubricId)} for b in batches]
+    return render(request, "index.html", batches=batches, rows=rows)
 
 
 @app.post("/batches")
@@ -241,6 +246,25 @@ def create_batch(name: str = Form(...), start: str = Form(""), end: str = Form("
               checkClaims=claims == "on", blind=blind == "on")
     store.put_json(f"batches/{b.id}.json", b)
     return RedirectResponse(f"/batches/{b.id}/rubric", status_code=303)
+
+
+@app.post("/batches/{batch_id}/delete")
+def delete_batch(batch_id: str):
+    """Removes the batch's own record, its rubric, its precedents, and every run's files and
+    checkout. Confirmed client-side (index.html) before this is ever called — there is no undo,
+    same as deleting the folder on disk would be, because that is exactly what this does."""
+    key = f"batches/{batch_id}.json"
+    if not store.exists(key):
+        return RedirectResponse("/batches", status_code=303)
+    batch = load_batch(batch_id)
+    for run_id in batch.runIds:
+        store.delete_prefix(f"runs/{run_id}")
+    store.delete_prefix(f"imports/{batch_id}")
+    if batch.rubricId:
+        store.delete(f"rubrics/{batch.rubricId}.json")
+    store.delete(f"precedents/{batch_id}.json")
+    store.delete(key)
+    return RedirectResponse("/batches", status_code=303)
 
 
 @app.get("/batches/{batch_id}", response_class=HTMLResponse)

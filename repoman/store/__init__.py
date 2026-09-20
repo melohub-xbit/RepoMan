@@ -18,6 +18,11 @@ class Store(Protocol):
     def get_bytes(self, key: str) -> bytes: ...
     def exists(self, key: str) -> bool: ...
     def list(self, prefix: str) -> list[str]: ...
+    def delete(self, key: str) -> None: ...
+    def delete_prefix(self, prefix: str) -> None:
+        """Remove every object under `prefix` — a whole run's files, a whole batch's data. Idempotent:
+        deleting something already gone is not an error, matching get_json's missing-key default."""
+        ...
     def local_dir(self, key: str) -> Path:
         """A real directory for `key` (checkouts). LocalStore: in place. S3Store: /tmp cache."""
         ...
@@ -75,6 +80,14 @@ class LocalStore:
             return []
         return sorted(str(p.relative_to(self.root)) for p in base.rglob("*") if p.is_file() and not p.name.endswith(".tmp"))
 
+    def delete(self, key: str) -> None:
+        self._p(key).unlink(missing_ok=True)
+
+    def delete_prefix(self, prefix: str) -> None:
+        import shutil
+
+        shutil.rmtree(self._p(prefix), ignore_errors=True)
+
     def local_dir(self, key: str) -> Path:
         p = self._p(key)
         p.mkdir(parents=True, exist_ok=True)
@@ -102,6 +115,12 @@ if __name__ == "__main__":
         assert s.get_json("runs/x/a.json") == {"k": 1}
         assert s.get_json("runs/x/missing.json", []) == []
         assert s.list("runs") == ["runs/x/a.json"]
+        s.delete("runs/x/a.json")
+        assert s.get_json("runs/x/a.json") is None
+        s.put_json("runs/y/a.json", {"k": 1}); s.put_json("runs/y/b.json", {"k": 2})
+        s.delete_prefix("runs/y")
+        assert s.list("runs/y") == []
+        s.delete_prefix("runs/never-existed")  # idempotent, not an error
         try:
             s.get_json("../etc/passwd")
             raise SystemExit("path escape allowed")

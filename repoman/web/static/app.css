@@ -406,8 +406,15 @@ a.btn { text-decoration: none; }
 .batches { list-style: none; margin: 0; padding: 0; }
 .batches li { display: flex; align-items: center; gap: 18px; padding: 16px 20px; border-bottom: 1px solid var(--rule); }
 .batches li:last-child { border-bottom: 0; }
-.batches li a.name { color: var(--ink); font-size: 18px; font-weight: 600; flex: 1; }
-.batches li .meta { font-family: var(--mono); font-size: 12.5px; color: var(--graphite); white-space: nowrap; }
+.batches li .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.batches li a.name { color: var(--ink); font-size: 17px; font-weight: 600; }
+.batches li .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.batches .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .03em; color: var(--graphite); background: var(--paper-2); border: 1px solid var(--rule); border-radius: 3px; padding: 2px 7px; white-space: nowrap; }
+.batches .tag.mono { text-transform: none; }
+.batches .tag.warn { color: var(--partial); border-color: color-mix(in oklab, var(--partial) 50%, var(--rule)); }
+.batches li .row-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.btn.danger { color: var(--contradicted); }
+@media (hover: hover) and (pointer: fine) { .btn.danger:hover { background: color-mix(in oklab, var(--contradicted) 12%, transparent); border-color: var(--contradicted); } }
 
 .foot { margin-top: 64px; padding-top: 14px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 12px; color: var(--graphite); display: flex; gap: 24px; flex-wrap: wrap; }
 .foot .thesis { font-family: var(--sans); font-size: 13px; }

@@ -86,6 +86,26 @@ class S3Store:
                 return sorted(out)
             token = page.get("NextContinuationToken")
 
+    def delete(self, key: str) -> None:
+        self.s3.delete_object(Bucket=self.bucket, Key=self._key(key))
+
+    def delete_prefix(self, prefix: str) -> None:
+        """Batch-delete (1000 keys per request, S3's own limit) every object under `prefix`."""
+        # list() already strips self.prefix (it returns the same relative keys get_json takes),
+        # so every result needs it put back on for the actual delete call — same as any other method.
+        keys = [self._key(k) for k in self.list(prefix)]
+        # local_dir's cache for this prefix (if materialised) is stale once the source is gone
+        import shutil
+
+        shutil.rmtree((CACHE_ROOT / self._key(prefix)).resolve(), ignore_errors=True)
+        for i in range(0, len(keys), 1000):
+            batch = keys[i:i + 1000]
+            self.s3.delete_objects(Bucket=self.bucket, Delete={"Objects": [{"Key": k} for k in batch]})
+        # S3 prefix matching is a raw string comparison, so list("runs/<id>") already includes
+        # "runs/<id>.tar.gz" (the archived checkout) whenever `prefix` has no trailing slash — this
+        # call is the fallback for the one caller shape where it would not be: a trailing "/".
+        self.delete(prefix.rstrip("/") + ".tar.gz")
+
     # --- the checkout ------------------------------------------------------------
 
     def local_dir(self, key: str) -> Path:
