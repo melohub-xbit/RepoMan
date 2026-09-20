@@ -29,6 +29,42 @@
 {% elif not rows %}
 <div class="card empty"><b>Nothing submitted yet</b>Add a GitHub URL below. A report PDF and a deployed URL make the findings richer.</div>
 {% else %}
+{% if rows and rubric %}
+<div class="section"><span class="k">Grid<span class="why">every requirement, every submission — green means RepoMan found it, click a cell to see why</span></span>
+<div class="card grid-wrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th class="corner"></th>
+        {% for req in rubric.requirements %}
+        <th class="col {% if req.gate %}gate{% endif %}" title="{{ req.statement }}">
+          <span class="t">{{ req.title|short(24) }}</span>{% if req.gate %}<span class="gate-dot" title="Eligibility gate">●</span>{% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <th scope="row"><a href="/runs/{{ row.run_id }}">{{ row.display_name }}</a>{% if row.eligible is sameas false %}<span class="gate-chip no">not eligible</span>{% endif %}</th>
+        {% for c in row.claims %}
+        <td>
+          {% if not c.req.verifiable %}
+          <a class="cell none" href="/runs/{{ row.run_id }}#claim-{{ c.req.id }}" title="Stays with you">{{ mark('none') }}</a>
+          {% elif c.finding %}
+          <a class="cell state-{{ c.finding.state }}" href="/runs/{{ row.run_id }}#claim-{{ c.req.id }}" title="{{ c.finding.state|lower }} — {{ c.finding.summary|short(160) }}">{{ mark(c.finding.state) }}</a>
+          {% else %}
+          <a class="cell pending" href="/runs/{{ row.run_id }}" title="Not checked yet">·</a>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
 {% if overlaps %}
 <div class="section"><span class="k">Shared code across this batch<span class="why">identical files, matched by content — renaming a file does not hide it</span></span>
 <div class="card">

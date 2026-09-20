@@ -1,9 +1,10 @@
-<form class="decision" hx-post="/runs/{{ run_id }}/decisions" hx-target="#claim-{{ req.id }}" hx-swap="outerHTML">
-  <span class="k">Your decision</span>
+<form class="decision" hx-post="/runs/{{ run_id }}/decisions" hx-target="#claim-{{ req.id }}" hx-swap="outerHTML"
+      hx-trigger="submit, change from:.seg, change from:.levels-pick, change from:.marks">
+  <span class="k">Your marks</span>
   <input type="hidden" name="requirement_id" value="{{ req.id }}">
   <input type="hidden" name="action" value="accept">
   {% if req.verifiable and f %}
-  <button class="btn" type="submit">Accept finding</button>
+  <button class="btn" type="submit">Save</button>
   <button class="btn ghost" type="button" data-override aria-pressed="false">Override</button>
   {% else %}
   <button class="btn" type="submit">Record</button>

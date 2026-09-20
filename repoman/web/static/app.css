@@ -557,3 +557,22 @@ html.js .reveal:not(.in) { opacity: 0; transform: translateY(10px); }
 .live .step::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--pencil); margin-right: 8px; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 .live .n { color: var(--ink); } .live .why { color: var(--graphite); }
+
+/* the batch grid: every requirement x every submission, a click-through cell instead of a card scroll */
+.grid-wrap { overflow-x: auto; }
+.grid { border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.grid th, .grid td { padding: 0; border-bottom: 1px solid var(--rule); }
+.grid thead th { padding: 10px 10px 8px; text-align: left; vertical-align: bottom; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--graphite); font-weight: 500; background: var(--paper-2); border-bottom: 1px solid var(--rule-strong); max-width: 120px; white-space: normal; }
+.grid thead th.corner { background: var(--paper-2); }
+.grid thead th.col .t { display: inline-block; }
+.grid thead th.col.gate { color: var(--ink); }
+.grid .gate-dot { color: var(--contradicted); font-size: 8px; margin-left: 4px; vertical-align: 2px; }
+.grid tbody th { text-align: left; padding: 8px 14px 8px 10px; font-weight: 400; position: sticky; left: 0; background: var(--card); border-right: 1px solid var(--rule); white-space: nowrap; }
+.grid tbody th a { color: var(--ink); text-decoration: none; }
+.grid tbody th a:hover { text-decoration: underline; }
+.grid tbody tr:hover th, .grid tbody tr:hover td { background: color-mix(in oklab, var(--ink) 3%, var(--card)); }
+.grid td { text-align: center; }
+.grid .cell { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; color: var(--none); text-decoration: none; }
+.grid .cell .mark { width: 15px; height: 15px; }
+.grid .cell.pending { color: var(--rule-strong); font-size: 18px; }
+@media (hover: hover) and (pointer: fine) { .grid .cell:hover { background: color-mix(in oklab, currentColor 12%, transparent); border-radius: 6px; } }

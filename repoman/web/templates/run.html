@@ -78,7 +78,7 @@
     const on = d.classList.contains('overriding');
     b.setAttribute('aria-pressed', on);
     form.querySelector('input[name=action]').value = on ? 'override' : 'accept';
-    form.querySelector('button[type=submit]').textContent = on ? 'Record override' : 'Accept finding';
+    form.querySelector('button[type=submit]').textContent = on ? 'Record override' : 'Save';
     if (on) form.querySelector('input[name=precedent]')?.focus();
   });
   document.body.addEventListener('decided', () => {
